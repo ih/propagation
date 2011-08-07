@@ -1,2 +1,154 @@
 propagation-based inference
+* background
+** propagation networks
+*** propagation networks: a flexible and expressive substrate for computation
+alexey radul's phd thesis
+**** abstract
+a general framework for building systems that perform computation via propagation of information
+****** what does it mean for a cell to accumulate information about a value?
+"The novel insight that should finally permit computing with general-purpose propagation is that a cell should not be seen as storing a value, but as accumulating information about a value"
+****** what does he mean by "there are no arbitrary important decisions?
+"I argue that the structure of the prototype follows from the overarching principle of computing by propagation and of storage by accumulating information—there are no important arbitrary decisions."  Perhaps this refers to probabilistic computing and random choices made during computation.
+**** DONE time for a revolution
+what is an example of mergeable, partial information? how does the notion of computational time constrain computation expressiveness of computation? how is the merging mechanism made generic?
+****** DONE expression evaluation has been wonderful
+in the expression paradigm expressions are computations whose value or side effect is determined by evaluation.  expressions are either atomic or a combinations of subexpressions each of which are evaluated then combined in a fixed way.  these combination expressions can be thought of as high-level actions where the particular way of combining subexpressions is the abstracted out part of a computation. 
+******** DONE why is an expression a combination of instructions acting on the results of subinstructions?
+An example to think of is the if expression, where if is a combination of three subexpressions (that eventually can be reduced to instructions), the combination of instructions is the implementation/semantics of if and the subinstructions being acted upon are the subexpressions to the if statement
+****** DONE but we want more
+there are computational problems where a computation can be defined in terms of sub-computations that can be related in many different ways
+******** DONE what is an example of a constraint satisfaction problem
+finding values in a system of linear equations, we have variables with constraints on the possible values (the equations that must hold involving them)
+******** DONE what is an example of automatic reasoning over declared logical relations?
+finding values for variables that satisfy a logical formula? e.g. determining familial relationships like whether x is a grandfather of y, based on definition of grandfather in terms of a father relation and information about the father relation, propagation occurs in assigning truth to different possible statements.  the assignment of truth to particular statements affects what can be furthur deduced so order can matter.
+********** DONE what is a logical relation?
+a set of tuples, e.g. the father relation is a set of pairs (a,b) where a is the father of b
+****** DONE we want more freedom from time
+the sequential nature of evaluation-based computation constrains models of processes to be sequential, even if the true process is not well-ordered or is really several processes running concurrently
+****** DONE propagation promises liberty
+by organizing computation in terms of networks, one can automatically order operations performed based on the needs of the solution rather than the description of the problem.  this thesis presents a general-purpose propagation system for building such systems.
+**** DONE design principles
+****** DONE propagators are asynchronous, autonomous, and stateless
+the general model is to have computing units called propagators connected to memory units called cells.  cells are responsible for maintaining locking mechanisms as well as detecting the end of a computation or quiescence 
+******** how is this useful to ip?
+in ip we can perhaps think of the computation for finding common subtrees a propagator and the parsing or the generation from a grammar of a model onto data a series of propagators, the cells would be incoming data as well as stored abstractions already formed
+****** DONE we simulate the network until quiescence
+computation is considered complete when a steady state has been reached (it seems a steady state occurs when cells become fixed), perhaps a better definition is when everything gets into a fixed cycle
+****** DONE cells accumulate information
+rather than store complete values cells store values in a range of development (from not started to partially computed to the final value of a computation) so that many different propagators may contribute to the computation of a particular value, in the ip setting we may see the program being parsed from a grammar as a partial value as different rules are activated and fit to data
+******** DONE what does it mean for a cell to store information about a value
+it's data that may or may not be useful in constructing the final value of the computation, one can think of it as results of partial computation(?)
+******** DONE why don't cells store values?
+using the design of "cells store values" leaves a lot of ambiguity as to how this should be implemented, e.g. what happens when we want to store a value to a cell that already has a value?  we can make an arbitrary decision here, but it's hard to tell what the long-term consequences will be.
+******** DONE because trying to store values causes trouble
+********** DONE option a
+the problem with dropping values is we implicitly define special conditions for propagation (e.g. when to drop) and this violates our design goal of having the system be "always on"
+************ DONE what are mutually inverse propagators?
+basically inverse operations, e.g. in figure 2-2 we have diagram of a propagator system where given and two values in the circles the system computes the third value, the constraints of the operations are specified by saying what their inverses are and all these "mutually inverse" operators are propagators
+********** DONE option b
+the problem with always overwriting is loops will run forever, also changes in value introduce a notion of time (what the value was before and after the change)
+********** DONE option c
+throwing an error is not a good solution because it just moves the problem somewhere else like to the schedulers.  cells store state so this is where state should be dealt with.
+********** DONE out of options
+if we are to store values in cells and avoid the above problems we need to make storage decisions based on the content of the value, but this leads a brittleness in the system as demonstrated by the equality example
+******** DONE and accumulating information is better
+basically the answer is for cells to store everything that ever goes into them.  they should be thought of as places where information about a value is collected rather than the value itself
+******** 
+**** DONE core implementation
+****** DONE numbers are easy to propagate
+	      CLOSED: [2011-02-25 Fri 21:24]
+conversion of F to C (temperature) is given as a wiring diagram illustrating how cells and propagators look in a concrete example.  this can be thought of as the execution of code rather than source.  
+******** DONE an interlude on simulation
+a scheduler is needed to tell when each propagator that is ready to run should be executed.  the simplest way is to have a queue, but things should be designed that order in the queue does not matter.  there is also a requirement that propagators perform all they need to do in a single execution, this may be limiting in the case we propagators that are doing large searches and are continuously outputting better and better results (does this violate the restriction?)
+******** DONE making this work
+cells need to accumulate information and also notify neighbors when changes have been made.  this is implemented through three functions add-content, new-neighbor!, and content.
+********** DONE cells have three functions to interface with them
+get the content, add content, register a propagator as a neighbor so whenever contents change the propagator is notified (scheduled to be run)
+********** DONE cells were implemented as closures in the message-accepter style
+this style has the object's (the cell) data (content) and functions (add content, content, add-neighbor) defined within a make-cell function.  
+
+make-cell returns a messaging function which takes in a message saying what function should be called (much like object.method) these functions can manipulate the persistent data defined in the closure e.g. neighbors 
+
+********** how is throwing an error in the definition of add-content different than "option C" of throwing an error in the design principles section discussing why cells should not store values? 
+******** propagators
+********* creating a general propagator
+The general propagator constructor takes a list of neighbors and connects the propagator to the neighbors via [[*cells%20have%20three%20functions%20to%20interface%20with%20them][new-neighbor!]], it also makes sure to alert the propagator after all the connections have been made (even though the connection to each neighbor will alert the propagator i.e. add it to the job queue of the scheduler
+********** DONE in the definition of propagator why does new-neighbor! take two arguments when the definition of new-neighbor! only takes one
+actually the definition of new-neighbor! does take two arguments, the second is the propagator so to-do is the propagating function
+
+********* creating a propagator with a specific function
+calls the constructor for a general propagator where the neighbors are cells containing input to the function, an output cell is also passed to the function->propagator-constructor whose content is updated whenever the the propagator is alerted (this adding content to the output cell is the function passed to the general propagator constructor as the "propagator")
+********* modifying functions to handle nothing as an input
+instead of passing regular scheme functions to "function->propagator-constructor"s we'll want to make sure they can handle nothing values (in case their input cells have nothin).  this is done by wrapping the function with a case for handling nothing inputs
+
+it's also worth noting if one wants to do probabilistic inference then rather then returning nothing when one of the inputs is nothing we can return a distribution over possible values
+********* basic constructors
+basic constructors e.g. + can be made by wrapping them in the do-nothin wrappers and passing them to function->propagator-constructor
+		 
+****** DONE propagation can go in any direction
+	      CLOSED: [2011-02-26 Sat 22:27]
+multi-directional networks can be built by encapsulating an operation's different directions of computation into a single function that creates propagators and their inverses e.g.
+(define (product x y total)
+  (multiplier x y total)
+  (divider total y x)
+  (divider total x y))
+The key observation here is that the cells x, y, and total are shared between the different propagators and this is what makes the propagation paradigm so different from evaluation.
+
+extending a network can be as easy as connecting a propagator to an existing cell like in the temperature conversion example of including kelvin conversion
+****** DONE we can propagate intervals too
+	      CLOSED: [2011-03-03 Thu 08:04]
+propagation of information is demonstrated via an example for estimating the height of a building with a barometer (a niels bohr anectdote)
+
+aside from the main illustration of performing computation on intervals and refining estimates through multiple sources of information, this example demonstrates a very interesting problem solving/reasoning capability of the networks where once one has a set of relations between different quantities one can easily make conditional inference using these propagation networks and this is very similar to human problem solving/lateral thinking (i.e. finding non-obvious relationships and exploiting them)
+******* DONE making this work
+	       CLOSED: [2011-03-03 Thu 08:04]
+Operations (propagators) on intervals need to be added and cells need to be able to merge information i.e. changed so if they already contain something they can accept another input.
+****** DONE generic operations let us propagate anything
+       CLOSED: [2011-03-05 Sat 13:30]
+******* DONE first cells
+	CLOSED: [2011-03-05 Sat 13:30]
+******** the context of merge 
+the common part of dealing with integers and dealing with intervals was that each had its own way of combining new information with the current content of the cell, radul proposes abstracting this out via a merge function which will dispatch different policies for integrating information dependent on the type of information encountered.
+******** generic operators
+generic operators are implementations of an operator that makes it easy to dynamically specify operator behavior for different types of data.  more accurately it allows one to add functionality (separate from the operators definition via defhandler) where the functionality is executed dependent on predicates on the arguments, e.g. predicates may check the type of the arguments.  merge is implemented as a generic operator and the default case (predicates of any? and nothing? on the arguments) handles numbers or "complete information" and another set of cases handles intervals and interactions between interval and number
+******* DONE then propagators
+	       CLOSED: [2011-03-05 Sat 13:30]
+adder, multiplier, etc propagators are redefined as generic operators with defhandlers added to each operation for interval computation.  a nice thing about the design of the system is multi-directional propagators such as sum, product etc do not have to be changed at all.
+
+future propagation systems will be based on defining how merge should behave, but they will all fit under this unified framework of cells and propagators.
+**** dependencies
+*** revised report on the propagator model
+by Alexey Radul and Gerald Jay Sussman
+**** getting started
+***** installation
+the propagator network code can be downloaded from Gerald's home page
+
+start scheme from the propagator home directory and type (load "load")
+I had to restart scheme and do (load "load") again for it to work properly
+
+
+
+***** basic example
+you can create cells using (define-cell [name]) e.g. (define-cell a)
+
+you can put something in a cell with (add-content [cell-name] [content])
+
+there are operations for creating propagators and returning a cell that corresponds to the output e.g. (e:+ cell1 cell2)
+
+to check what is in a cell use (content [cell-name])
+
+you have to use (run) to have the network actually perform a computation
+***** making propagator networks
+propagators can be thought of as procedures and cells can be thought of as memory locations.  the difference between the traditional model of memory and propagation cells is that propagations cells  accumulate partial information instead of holding a value 
+[???give a simple example]
+****** attaching basic propagators
+how do you attach a propagator to a set of cells?
+the d@ operation (short for diagram apply) attaches a propagator to other cells with the convention being the last cell is the output cell for the propagator and the first argument is a cell that has propagator constructor information** probabilistic inference
+* propagation-based probabilistic inference
+** probabilistic inference 
+can this be done by specifying how to handle [[*modifying%20functions%20to%20handle%20nothing%20as%20an%20input][nothing]] cases for functions?
+** [[*we%20can%20propagate%20intervals%20too][partial information]] and propagation of uncertainty
+how is propagation of uncertainty formulated in the framework where distributions are partial programs, how does this relate to partial information
+
+perhaps given data, different parts of the data are being explained/explained at the same time and all of this must be combined
 
