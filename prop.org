@@ -192,7 +192,6 @@ It allows for conditional copying of input to output cell based on a control cel
 ******* what is the signature of the switch propagator?
 (p:switch control input output), (e:switch control input)
 ******* why does partial information make the switch propagator interesting?
-
 ****** what does the conditional propagator do?
 ******* what is the signature of the conditional propagator?
 ****** what does the conditional-router propagator do?
@@ -204,6 +203,75 @@ an example of the sampling approach to inference
 *** TODO report on the probabilistic scheme
 alexey radul 2007
 an example of the systematic search approach to inference
+**** introduction
+***** what are some example applications of probabilistic modeling?
+spam filtering, automated driving, discovering patterns of gene expression
+****** how are probabilistic models used in spam filtering?
+???
+****** how are probabilistic models used in automated driving?
+???
+****** how are probabilistic models used in discovering patterns of gene expression?
+???
+***** what are the contributions of probabilistic scheme?
+probabilistic scheme provides an embedding of probabilistic computation into a general-purpose programming language and anytime approximation using upper and lower bounds
+****** what is meant by probabilistic computation?
+determining a distribution over values for an expression, more specifically potentially complicated conditional distributions
+****** what is meant by anytime approximation?
+???
+***** how does probabilistic scheme relate to probability distributions?
+expressions in probabilistic scheme are distributions over the possible values the expression can evaluate to
+***** how should one conceptualize distributions in probabilistic scheme?
+as a list (more accurately a stream) of possibilities/possible values for an expression
+***** what are the components of probabilistic scheme?
+a stochastic language, an explicit language for distributions, and a query language
+****** what is the stochastic language component of probabilistic scheme for?
+constructing complex distribution as scheme programs with primitives nondeterministic primitives
+****** what is the explicit language for distributions in probabilistic scheme for?
+???
+****** what is the query language for?
+it's used for getting specific information out of/about a distribution
+******* what is an example of information that would be queried from a distribution?
+???
+**** background
+***** what is the motivation for probabilistic scheme?
+allow modeling for more structure in domains than current probabilistic model representations
+****** what is lacking in the bayesian network formulation of probabilistic models?
+the ability to capture complex structure of a domain 
+******* why do bayesian networks have a hard time capturing complex structure?
+it is a propositional system and so has similar limitations as propositional logic (compared to first order logic)
+******** why is propositional logic more limited than first order logic?
+???
+******* what is an example of relational structure?
+???
+******** why is this difficult to model with a Bayesian network?
+???
+******* what is an example of first-order logical structure?
+???
+******** why is this difficult to model with a Bayesian network?
+???
+****** how does probabilistic scheme improve on the ability to capture structure?
+***** how does probabilistic scheme differ from IBAL?
+it is not an entire new language rather it is embedded within a general purpose programming language
+****** what is IBAL?
+***** how does probabilistic scheme differ from Ramsey and Pfeffer?
+**** stochastic language
+***** what are the primitives for uncertainty in probabilistic scheme?
+****** what does discrete-select do?
+****** what does observe! do?
+****** what does stochastic-thunk->distribution do?
+***** how is the conditional distribution p(dice-face|face>2) represented in probabilistic scheme?
+****** how can a die be modeled in probabilistic scheme?
+****** what is the implicit distribution for the expression (face (roll-die))?
+****** what is the implicit distribution for the expression (> face 2)?
+****** how does (observe! (> face 2)) affect the implicit distribution?
+
+***** how can the stochastic language be implemented with rejection query?
+****** how is discrete-select implemented in the rejection query paradigm?
+****** how is observe! implemented in the rejection query paradigm?
+****** how is stochastic-thunk->distribution implemented in the rejection query paradigm?
+***** what is the general idea for the actual implementation of the stochastic language?
+****** how does finding the acceptable possibilities through systematic search give a distribution?
+each possibility has an associated probability and once all the probabilities are known a distribution can be formed by normalizing them over the acceptable possibilities
 * propagation-based probabilistic inference
 The goal should be making random choices such that the condition holds.  the probability is then the product of the random choices.  In current sampling schemes this can be inefficient because the random choices are generally made independently (rejection sampling) or semi-randomly (gradient-style manipulation of a single random choice at a time, mcmc).  The potential of propagation is to use dependency information about the operations in the computation to make "smarter" random choices in order to force the condition to hold.
 
