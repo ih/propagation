@@ -184,7 +184,8 @@ propagator and expression, p:foo and e:foo are cells with information about prop
 it continuously copies the contents of input to output
 ******* what is the signature of the id propagator?
 (p:id input output), (e:id input)
-****** what does the == propagator do? 
+****** what does the == propagator do?
+it feeds the input cells to the output cell
 ******* what is the signature of the == propagator?
 (p:== input ... output), (e:== input ...) 
 ****** what does the switch propagator do?
@@ -192,15 +193,59 @@ It allows for conditional copying of input to output cell based on a control cel
 ******* what is the signature of the switch propagator?
 (p:switch control input output), (e:switch control input)
 ******* why does partial information make the switch propagator interesting?
+the thing that is written to the output may be depedent on some conditions on the control cell
+******** what is an example of this?
+???
 ****** what does the conditional propagator do?
+it is like an if expression where the first cell goes to the output cell if the control cell is true otherwise the second cell goes to the output cell
 ******* what is the signature of the conditional propagator?
+(p:condtional control cell1 cell2 output)
+(e:conditional control cell1 cell2)
 ****** what does the conditional-router propagator do?
+this is like an if but instead the input goes to an output cell1 if the control is true and goes to output cell2 if the control is false
 ******* what is the signature of the conditional-router propagator?
+(:conditional-router control input output1 output2)
+(:conditional-router control input output1)
+***** cells are data too
+****** what is the implication of cells A and B being inside cell C?
+they have partial information about the cell C
+****** what is desirable if cells occur in another cell?
+the inner cells should be kept in sync with c:id
+******* what is meant by by partial information?
+???
+****** how can cells be added to a cell such that they are kept in sync?
+using the deposit or examine propagator
+******* what is the syntax of the deposit propagator?
+(p:deposit cell place-cell) (e:deposit cell) where place-cell is the outer cell and cell is the inner cell
+******* what is the syntax of the examine propagator?
+it's deposit with the arguments reversed
+(p:deposit place-cell cell), (e:examine place-cell)
+******* what is the difference between examine and deposit?
+the difference is deposit returns the outer cell and examine returns the inner cell
+
+******** how does (e:examine place-cell) work?
+if place-cell has a cell then it is returned, otherwise a new cell is synthesized then put into place-cell then returned
+***** compound data
+****** how is compound data made in the propagator model?
+using the compound data structures of scheme to put together cells
+******* what does the cons propagator do?
+it creates a pair out of two cells and sticks them in an output cell using a syncing propagator like deposit
+******** what is the syntax of the cons propagator?
+(p:cons car-cell cdr-cell output), (e:cons car-cell cdr-cell)
+******* what does the pair? propagator do?
+******** what is the syntax of the pair? propagator?
+******* what does the null? propagator do?
+******** what is the syntax for the null? propagator?
+******* what does the car propagator do?
+******** what is the syntax for the car propagator
+******* what does the cdr propagator do?
+******** what is the syntax for the cdr propagator
+
 ** probabilistic inference
 *** church: a language for generative models
 noah goodman, vikash mansighka, dan roy, keith bonawitz, josh tenenbaum 2008
 an example of the sampling approach to inference
-*** TODO report on the probabilistic scheme
+*** report on the probabilistic scheme
 alexey radul 2007
 an example of the systematic search approach to inference
 **** introduction
@@ -253,23 +298,63 @@ it is a propositional system and so has similar limitations as propositional log
 ***** how does probabilistic scheme differ from IBAL?
 it is not an entire new language rather it is embedded within a general purpose programming language
 ****** what is IBAL?
-***** how does probabilistic scheme differ from Ramsey and Pfeffer?
+IBAL is an OCAML based probabilistic programming language
+***** how does probabilistic scheme differ from Ramsey and Pfeffer stochastic lambda calculus?
+it is based on a more operational approach to semantics rather than a denotational semantics
+****** what are denotational semantics?
+meaning of one expression is defined in terms of the meaning of an expression in another language
+expressions are converted into terms in a mathematical language, this corresponds to the idea of compilation
+******* what is an example of the denotational semantics of an expression?
+???
+****** what are operational semantics?
+meaning of an expression is defined in terms of its execution on some machine
+
+this corresponds to interpretation 
+******* what is an example of the operational semantics of an expression?
+???
 **** stochastic language
 ***** what are the primitives for uncertainty in probabilistic scheme?
+discrete-select, observe!, stochastic-thunk->distribution
 ****** what does discrete-select do?
+returns an item with the probability specified
+******* what is the signature of discrete-select?
+(discrete-select (item1 prob1) (item2 prob2)...)
 ****** what does observe! do?
+it forces the outcome of a stochastic expression to obey a given boolean expression and thus conditions the implicit distribution of the encapsulating expression
+******* what is the signature of observe!
+(observe! boolean)
 ****** what does stochastic-thunk->distribution do?
+it returns an explicit distribution of a stochastic expression
+******* what is the signature of stochastic-thunk->distribution?
+(stochastic-thunk->distribution thunk)
+******* how is an explicit distribution represented?
+???
 ***** how is the conditional distribution p(dice-face|face>2) represented in probabilistic scheme?
+the outcome,face, of a die roll is modeled then conditioned on face>2.  face is returned by the expression
 ****** how can a die be modeled in probabilistic scheme?
+(define (roll-die) (discrete-select (1 1/6) (2 1/6) ... (6 1/6)))
+****** how can the roll-die be conditioned on face being greater than 2
+(let ((face (roll-die)))
+(observe! (> face 2))
+ face)
 ****** what is the implicit distribution for the expression (face (roll-die))?
+uniform over die faces
 ****** what is the implicit distribution for the expression (> face 2)?
+uniform over values of the die face greater than 2
 ****** how does (observe! (> face 2)) affect the implicit distribution?
-
-***** how can the stochastic language be implemented with rejection query?
+it creates a conditional distribution 
+***** how can the stochastic language be implemented with rejection sampling?
+the stochastic primitives are implemented so that the thunk is a sampler and the frequency of the values it returns is an approximation of the distribution
 ****** how is discrete-select implemented in the rejection query paradigm?
+discrete-select would randomly return a value
 ****** how is observe! implemented in the rejection query paradigm?
+observe would throw an exception if it evaluated to false
 ****** how is stochastic-thunk->distribution implemented in the rejection query paradigm?
+the thunk would be run several times and any successful values would be recorded
+
+the frequencies of each returned value would be an approximation of the distribution
 ***** what is the general idea for the actual implementation of the stochastic language?
+every possible outcome of the computation is explored as a possibility, these possibilities are either acceptable (according to the conditions) or not and give information on the overall distribution
 ****** how does finding the acceptable possibilities through systematic search give a distribution?
 each possibility has an associated probability and once all the probabilities are known a distribution can be formed by normalizing them over the acceptable possibilities
 * propagation-based probabilistic inference
@@ -312,7 +397,8 @@ eventually we'd like to be able to learn constraints for higher level operations
 ** probablistic programming tantalizes
 section 5.2 of Alexey Radul's PhD thesis
 *** how does dependency-directed backtracking improve probabilistic inference?
-**** how does dependency-directed backtracking work?
+**** TODO how does dependency-directed backtracking work?
+read in revised report on the propagator model
 **** what is an example of evidence pushing in a propagation network?
 **** what is an example of the "two levels of propagation" mentioned on page 85?
 
