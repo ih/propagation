@@ -233,14 +233,85 @@ it creates a pair out of two cells and sticks them in an output cell using a syn
 ******** what is the syntax of the cons propagator?
 (p:cons car-cell cdr-cell output), (e:cons car-cell cdr-cell)
 ******* what does the pair? propagator do?
+attaches a propagator that tests whether the input contains a pair and writes a boolean to the output
 ******** what is the syntax of the pair? propagator?
+(p:pair? input outout) (e:pair? input)
 ******* what does the null? propagator do?
+attaches a propagator to the input that checks if it contains the empty list
 ******** what is the syntax for the null? propagator?
+(p:null? input outout) (e:pair? input)
 ******* what does the car propagator do?
+it syncs the car of a pair within the input to the passed in output cell.
+******** what happens if a pair does not exist in the input cell?
+a pair is created via (p: cons output nothing input)
+******** what happens if a pair already exists in the input cell and e:car is used?
+the car of the pair will be used as the output cell instead of synthesizing a new one
 ******** what is the syntax for the car propagator
+(p:car input output), (e:car input)
 ******* what does the cdr propagator do?
+it syncs the output to the cdr cell of the pair inside input, acts just like car
 ******** what is the syntax for the cdr propagator
+(p:cdr input output), (e:cdr input)
+******* what does it mean that merging by p:id is bidirectional?
+not only does the contents of the input cell get continuously copied to the output cell, but any changes to the output cell get written to the input cell
+******* what is an example of merging two cons structures together?
+???
+***** propagator constraints: c:foo and ce:foo
+****** what are constraints for?
+deriving information about the arguments of a function based on its output
+****** what does c:foo do?
+it attaches the propagator foo (like p:foo), but also attaches inverse propagators of foo
+******* what do inverse propagators of foo do?
+they deduce the inputs from the outputs
+****** how does ce:foo work?
+same as c:, but in expression style (so synthesizes the output cell)
+***** constants and literal values
+****** what is the preferred way to add a constant in a program?
+use the constant propagator
+******* what is the syntax for the constant propagator?
+(p:constant constant-value) constructs the propagator
+((p:constant constant-value) cell) propagates the constant value to a cell
+(run)
+******* how does the expression style constant propagator used?
+(define-cell cell-name (e:constant constant-value))
+(run)
+***** constant conversion
+****** what happens to constants in propagator programs?
+the system will convert them to constant propagators when possible using e:constant
+***** making cells
+****** what are the equivalent of scheme variables in the propagator model?
+cells bound to scheme variables
+****** what is an alternative to (define-cell x)
+(define x (make-cell))
+******* what is the difference betwee (define-cell x) and (define x (make-cell))?
+define-cell does constant conversion and adds meta-data for debugging
 
+****** how do you define variables with let style in the propagator model?
+(let-cells ((foo (e:+ x y))
+           (bar (e:constant 5)))
+...)
+
+(let-cells* ((var val) (var val)...) ...)
+
+(let-cells-rec ((var val) (var val)...) ...)
+
+****** what is the initial state for any cell?
+the partial information structure nothing
+****** what does (let-cells (x y (foo (some thing))) ...) mean?
+x and y are cells not attached to propagators (i.e. only have the nothing information in them.  it's like (let-cells ((x) (y) (foo (some thing))) ...)
+****** what is the difference between let-cell and let-cells?
+let-cell only allows for the creation of a single variable, in general just use let-cells
+***** conditional network construction
+****** what is the idea of conditional network construction?
+delay the construction of the network conditioned upon information appearing at the boundary
+****** what does the when propagator do?
+it evaluates some code for constructing part of the network dependent on a control cell being true
+******* what is the syntax for the when propagator?
+(p:when internal-cells condition body ...)
+where internal-cells are free variables in body and body is code that does some sort of network construction
+condition is an expression that creates a cell with a conditional value
+******** what is an example of the when propagator?
+???
 ** probabilistic inference
 *** church: a language for generative models
 noah goodman, vikash mansighka, dan roy, keith bonawitz, josh tenenbaum 2008
@@ -357,6 +428,7 @@ the frequencies of each returned value would be an approximation of the distribu
 every possible outcome of the computation is explored as a possibility, these possibilities are either acceptable (according to the conditions) or not and give information on the overall distribution
 ****** how does finding the acceptable possibilities through systematic search give a distribution?
 each possibility has an associated probability and once all the probabilities are known a distribution can be formed by normalizing them over the acceptable possibilities
+
 * propagation-based probabilistic inference
 The goal should be making random choices such that the condition holds.  the probability is then the product of the random choices.  In current sampling schemes this can be inefficient because the random choices are generally made independently (rejection sampling) or semi-randomly (gradient-style manipulation of a single random choice at a time, mcmc).  The potential of propagation is to use dependency information about the operations in the computation to make "smarter" random choices in order to force the condition to hold.
 
