@@ -312,6 +312,86 @@ where internal-cells are free variables in body and body is code that does some 
 condition is an expression that creates a cell with a conditional value
 ******** what is an example of the when propagator?
 ???
+****** what does the unless propagator do?
+same as the when propagator but reversing the control cell
+****** what does the if propagator do?
+evaluates one branch of network construction code with given input cells if control cell is true otherwise evaluates the other branch
+**** making new compound propagators
+***** what is a compound propagator?
+a composition of several primitive propagators treated as a single propagator, much like a function can be thought of as a sequence of more primitive actions that gets abstracted/used as a single action
+***** how do you create compound/abstract propagators?
+define-d:propagator and define-e:propagator
+****** what is the syntax for define-d:propagator and define-e:propagator?
+(define-d:propagator ([name of new compound propagator] boundary_cell1 boundary_cell2 ...)
+diagram-style propagator network made out of primitives...)
+define-e:propagator is similar, but exprected to return an additional output cell and the network is defined in expression style
+****** what is define-propagator short for?
+define-d:propagator 
+****** what is the syntax for anonymous propagators?
+lambda-d:propagator and lambda-e:propagator
+****** how does one use a propagator created using define-propagator?
+(define-propagator (propagator-name...)...)
+
+can be used as (p:propagator-name ...)
+****** how does one create a constraint propagator using define-propagator?
+(define-propagator (c:propagator-name ...) ...)
+***** lexical scope
+****** how are free variables accessed in a nested propagator definition?
+using the import function e.g.
+(define-propagator (a var1...)
+  (define-propagator (b ...)
+     (import var1) <--- gives access to the outer scope
+))
+***** recursion
+****** Is "evaluation" (network construction) of a propagator lazy or eager?
+eager
+****** how is recursion implemented since evaluation is eager?
+using conditional construction propagators like if, when, and unless (just like in scheme)
+****** how would you write a network to compute the factorial function using diagram style propagators?
+(define-propagator (p:factorial n n!) 
+  (p:if (n n!) (e:= 0 n) 
+    (p:== 1 n!) 
+    (p:== (e:* n (e:factorial (e:- n 1))) n!))) 
+****** how would you write a network to compute the factorial function using expression style propagators?
+(define-e:propagator (e:factorial n) 
+  (e:if (n) (e:= 0 n) 
+    1 
+    (e:* n (e:factorial (e:- n 1))))) 
+**** using partial information
+***** what is special about propagator memory cells?
+they contain partial information about the value in the cell i.e. anything that is known about a value in a computation
+***** how is partial information represented in the propagator system?
+as scheme objects with a particular type that determines how the information interacts with everything else
+***** what are examples of partial information?
+*nothing* which indicates nothing is known about a value, a number which says the value is the number, an interval which says the value is bounded in a certain way
+***** how is partial information put into a cell?
+via add-content, which is used implicitly in define-cell
+***** how do different types of partial information interact in a network?
+they generally are coerced to the less-specific type, but the more specific information may narrow what is known
+****** what is an example of how partial information mixes?
+(define-cell x (make-interval 3 5)) 
+(define-cell y (e:+ x 2)) 
+then running the network gives
+(content y)  ==>  #(interval 5 7) 
+***** what is the key idea of partial information?
+it accumulates so that one approaches the true value as more and more information is added
+****** what is an example of how more information can narrow the possible values for a cell?
+if (content y) => #interval (5 7) and we add more information
+(add-content y (make-interval 4 6)) 
+then 
+(content y)  ==>  #(interval 5 6) 
+***** what happens if two pieces of information about a value contradict each other?
+the system will stop and complain
+***** what functions are used to define partial information types?
+equivalent?, merge, and contradictory?
+****** what does equivalent? do?
+it tests whether two pieces of partial information represent the same thing
+****** what does merge do?
+combines two information structures
+****** what does contradictory? do?
+tests whether an information structure represents an impossible state
+***** what else is needed to define partial information types?
+how propagators treat the type especially the behavior in the control position of a switch and the operator position of an apply
 ** probabilistic inference
 *** church: a language for generative models
 noah goodman, vikash mansighka, dan roy, keith bonawitz, josh tenenbaum 2008
