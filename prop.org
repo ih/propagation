@@ -502,7 +502,7 @@ the code/scheme procedure must be the same otherwise a contradiction is the resu
 ***** truth maintenance systems 
 ****** what is a truth maintenance system?
 a set of contingent values
-******* what is a contingent value?
+******* what is a contingent value? 
 a partial information object that describes the value in a cell along with a set of premises
 ******** what are premises?
 scheme objects with no properties other than identity i.e. we can check that two premises are the same via eq?
@@ -528,7 +528,56 @@ there is a single current global worldview which starts believing all premises, 
 ******* how do you check whether a premise is in the worldview?
 (premise-in? premise)
 ******* how do you make a contingent value?
-(contingent info premises)*** church: a language for generative models
+(contingent info premises)
+
+******* how do you get the information structure from a  contingent value?
+(contigent-info contingency-object)
+******* how dd you get the premises from a contingent value?
+(contingent-premises contingent-value)
+******* how do you tell whether a contingent value's information is believed?
+(contingent-object-believed? contingent-value)
+******* how do you make a truth maintenence system?
+(make-tms contingent-value-list)
+******* how do you query a tms object?
+(tms-query tms)
+******** what does tms-query return?
+a contingent-value that represents the strongest deduction the TMS can make given the current worldview i.e. the contingent value with the strongest information.
+********* what is the strongest information when it comes to contingent values?
+???
+****** how do you reset the worldview so that all premises are believed?
+(initialize-scheduler)
+****** how is the behavior of equivalent? defined for two tms?
+two tms are equivalent if they have the same contingent values
+******* when are contingent values the same?
+when they have the same information and premises
+****** how is behavior of merge defined for two tms?
+the merge of two tms is the union of their contingent values
+****** how does a switch propagator behave when a tms is in the control cell?
+a query is made of the tms and based on the resulting contingent value's information the switch will propagate the input to the output, if the input does propagate to the output the premises of the control contingent-value will be added to the outputs premises
+****** how does a switch propagator behave when a tms is in the input cell?
+it queries the input tms and if the control propagates the input then the contingent-value from the query is propagated to the output
+****** what does the apply propagator do with a tms as the operator?
+it queries teh tms operator and if the info of the resulting contingent value is a propagator contructor then the propagator is applied to the boundary cells and the premises of the operator are attached to the output and forwarded to the inputs
+******* what does it mean for the premises of a propagator construct to be forward to the input boundary cells?
+???
+
+***** contradiction
+****** what is the-contradiction as partial information structure?
+it represents a contradictory state in the system and if a cell has this value an error is signaled 
+****** how is the behavior of equivalent? defined for the-contradiction?
+only the-contradiction is equivalent
+****** how is merge behavior defined for the-contradiction?
+anything merged with the-contradiction results in the-contradiction
+****** how do propagators operate on the-contradiction?
+they don't because if a cell has the-contradiction as a value the system signals an error
+***** implicit dependency-directed search
+****** what happens if a tms has a contingent value whose information is the-contradiction?
+it signals the premises form a nogood set
+****** what invariant does the system maintain with respect to nogood sets?
+it keeps a worldview that does not have any nogood sets
+
+** probabilistic inference
+*** church: a language for generative models
 noah goodman, vikash mansighka, dan roy, keith bonawitz, josh tenenbaum 2008
 an example of the sampling approach to inference
 *** report on the probabilistic scheme
