@@ -392,8 +392,143 @@ combines two information structures
 tests whether an information structure represents an impossible state
 ***** what else is needed to define partial information types?
 how propagators treat the type especially the behavior in the control position of a switch and the operator position of an apply
-** probabilistic inference
-*** church: a language for generative models
+**** built-in partial information structures
+***** what are the built-in partial information structures?
+nothing
+a single value
+intervals
+propagator cells
+compound data
+closures
+supported values
+truth maintenance systems
+contradiction
+***** nothing
+****** what is the nothing information structure?
+it is a scheme object *nothing* that represents the complete absence of information
+****** what is the way to test if an object is nothing?
+(nothing? object)
+****** how is the behavior of equivalent? defined for *nothing*?
+it returns false for anything other than *nothing* i.e. *nothing* is only equivalent with *nothing*
+****** what happens when something is merged with *nothing*?
+nothing happens to the something, the result of the merge is you get the something back
+****** what is the behavior of contradictory? with *nothing*?
+it returns false, everything is compatible with *nothing*
+****** how does a switch process *nothing* in its control cell?
+it propagates *nothing* to the output cell
+****** how do propagators interact with nothing?
+the output is usually *nothing*
+****** what does the apply propagator do with *nothing* as the operator cell?
+it doesn't do anything
+***** just a value
+****** what is a value information structure?
+any scheme object that is not some other partial information structure, it represents complete information known about the contents of a cell
+****** how is the behavior of equivalent? defined for a value?
+it is defined in terms of eqv? and for floating points approximate equality is tested
+****** what happens when something is merged with a value?
+if the objects are not eqv? then the result of a merge is the contradiction object
+****** what is the behavior of contradictory? with a value?
+it is always false
+****** how does a switch process a value in its control cell?
+if the value is not #f then the switch propagates the input cell to the output cell otherwise it propagates a *nothing* object
+****** what does the apply propagator do with a value?
+if the value is a scheme procedure the procedure is applied to the boundary cells, otherwise an error occurs
+***** numerical intervals
+****** what is a numeric interval information structure?
+it consists of an upper and lower bound and represents the true value being somewhere in between these bounds
+****** how do you create an interval?
+(make-interval lower-bound upper-bound)
+****** how do you get the lower bound of an interval?
+(interval-low interval)
+****** how do you get the upper bound of an interval?
+(interval-high interval)
+****** how do you test whether an object is an interval?
+(interval? object)
+****** how is the behavior of equivalent? defined for a numerical interval?
+two intervals are equivalent? if they are the same interval, a number and an invterval are equivalent if the lower bound=upper bound=number
+****** how does comparison of intervals work?
+they return true or false as long as no additional information about the interval (shrinkage) can change the answer, otherwise it propagates *nothing*
+******* what would cause a comparison of intervals to change given additional information about the intervals?
+(e:< interval1 interval2) could be true if interval1 contains interval2, but it might turn out to be false if interval1 is actually the upperbound
+****** what happens when two intervals are merged?
+two intervals are intersected when merged
+****** what happens when a number and an interval are merged?
+the number is treated as an interval with the same upper and lower bound, so either the number is returned or the empty interval
+****** what happens when something other than a number or interval is merged with an interval?
+the result is the contradiction object
+****** how do arithmetic propagators behave with intervals?
+they perform interval arithmetic
+******* how does interval arithmetic work?
+???
+****** how does a switch process a value in its control cell?
+it propagates the input cell to the output cell
+****** what does the apply propagator do with an interval as the operator?
+it is an error
+****** what happens with dividing an interval that contains zero?
+no information is gained
+***** propagator cells as partial information
+****** what is a cell as an information structure?
+it is a propagator cell and it means the structure of the value is within the cell i.e. the partial information about the value of the outer cell lies within the inner cell
+****** how is the behavior of equivalent? defined for cells?
+cells are equivalent? if they are identically the same cell or if they have been merged/synced and so contain the same information
+****** is a cell object ever contradictory?
+no
+***** compound data
+****** what is a cell pair as an information structure?
+it says the value of a cell has a pair structure and information about the car value is in the car cell and information about the cdr value is in the cdr cell
+****** what is the empty list as an information structure?
+the empty list is a value, it says the value of the cell is an empty list
+
+****** how is the behavior of equivalent? defined for cell pairs?
+two cell pairs are equivalent? if the cells in their cars and cdrs are equivalent?, cell pairs can only be equivalent? to cell pairs
+****** how does merging work with a cell pair?
+two pairs are merged recursively by merging the cars then the cdrs, merging a pair with anything else results in contradiction
+****** how does a switch process a value in its control cell?
+it propagates input to output even for empty list
+****** what does the apply propagator do with a value as operator?
+this is an error
+****** how can other types of compound data structures be made into partial information structures?
+define-propagator-structure, declares that additional Scheme data structures are partial information like pairs, and defines appropriate propagators that handle them.
+******* what is the syntax for define-propagator-structure?
+(define-propagator-structure type constructor accessor1 accessor2 ...)
+***** closures
+****** what is a closure as an information structure?
+it is compound data where that gives structural information about how other partial information relates to each other
+******* what is a closure?
+a scheme procedure (code pointer) along with an environment that maps names to cells
+****** how does merging work for closures?
+the code/scheme procedure must be the same otherwise a contradiction is the result of a merge, if the code is the same the enivornment is merged by merging the cells in the environment** probabilistic inference
+
+***** truth maintenance systems 
+****** what is a truth maintenance system?
+a set of contingent values
+******* what is a contingent value?
+a partial information object that describes the value in a cell along with a set of premises
+******** what are premises?
+scheme objects with no properties other than identity i.e. we can check that two premises are the same via eq?
+******* what is a worldview?
+a set of premises that are believed to be true
+****** what is the meaning of a TMS?
+it is the logical and of the meaning of its contingent values
+******* what is the meaning of a contingent value
+its an implication where the conjunction of the premises implies the contingent information
+******* how does a worldview relate to a TMS?
+it give meaning to contingent values, which in turn gives meaning to the TMS
+
+****** what does querying a TMS do?
+it returns the best summary of the believed information (true contingent values) along with the premises the believed information is contingent upon
+****** how does the propagator system relate to the TMS?
+there is a single current global worldview which starts believing all premises, the worldview can change its set of premises and the resulting consequences of different worldviews can be examined
+****** TMS operations
+******* how do you remove a premise from the current worldview?
+(kick-out! premise)
+******* how do you bring a premise back into the worldview?
+(bring-in! premise)
+
+******* how do you check whether a premise is in the worldview?
+(premise-in? premise)
+******* how do you make a contingent value?
+(contingent info premises)*** church: a language for generative models
 noah goodman, vikash mansighka, dan roy, keith bonawitz, josh tenenbaum 2008
 an example of the sampling approach to inference
 *** report on the probabilistic scheme
