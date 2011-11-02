@@ -576,9 +576,30 @@ it signals the premises form a nogood set
 ****** what invariant does the system maintain with respect to nogood sets?
 it keeps a worldview that does not have any nogood sets
 
+*** programming with propagators
+**** running scheme-propagators
+***** from the repl
+run mit-scheme from the propagators directory
+(load "load")
+start entering propagator 
+***** TODO from a file
+*** projects
+**** parsing
+write a propagation network for a generative grammar and see if parsing comes for free
+***** balanced parentheses language 
+S-> SS
+S-> 1S0
+S-> 10
+***** forward generation network
+****** TODO write as scheme program
+S is a function that randomly chooses to return one of the three production rules (randomness functions are in scheme-propagators)
+
+need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
+****** convert scheme program to propagator network
+
 ** probabilistic inference
 *** church: a language for generative models
-noah goodman, vikash mansighka, dan roy, keith bonawitz, josh tenenbaum 2008
+noah goodman, vikash mansinghka, dan roy, keith bonawitz, josh tenenbaum 2008
 an example of the sampling approach to inference
 *** report on the probabilistic scheme
 alexey radul 2007
@@ -693,6 +714,39 @@ every possible outcome of the computation is explored as a possibility, these po
 ****** how does finding the acceptable possibilities through systematic search give a distribution?
 each possibility has an associated probability and once all the probabilities are known a distribution can be formed by normalizing them over the acceptable possibilities
 
+*** natively probabilistic computation
+vikash mansinghka disseration 2009
+**** planning as sampling
+***** what is softmax-optimal planning?
+choosing actions according to a distribution defined by the values of the actions (where probability of an action is proportional to its value)
+****** what is the most common softmax method?
+the most common softmax method uses a gibbs or boltzmann distribution over actions
+
+\frac{e^{\frac{Q(a)}{\tau}}}{\sum_i e^{\frac{Q(a_i)}{\tau}}}
+
+where tau is a temperature constant
+******* what does the temperature constant do in the gibbs distribution with respect to softmax action selection?
+it makes the distribution more uniform or peaked depending on whether the temperature is high or low.  having a peaked distribution makes the action selection like epsilon-greedy, having it more uniform means choosing actions at random
+******** what is epsilon-greedy action selection?
+choose the best action with probability 1-epsilon otherwise select an action uniformly at random
+
+***** how do you represent softmax action selection as a probabilistic program?
+(define (choose-action state)
+  (lex-query ’((action (action-prior)))
+	      ’action
+	       ’(flip (normalize-reward
+		       (sample-reward action state)))))
+****** how is sample-reward implemented?
+(define (sample-reward action state)
+  (let ((next-state (state-transition state action)))
+    (+ (reward next-state)
+       (if (terminal? next-state) 0
+	 (sample-reward (choose-action next-state)
+			next-state)))))
+****** how does the choose-action function represent soft-max action selection?
+the condition statement is a distribution over actions according to their values
+query returns a sample from the prior over actions if the condition is true, which it is according to the distribution in the conditional, this means an action is chosen with probability according to the conditional statement, which makes it a softmax action selector
+
 * propagation-based probabilistic inference
 The goal should be making random choices such that the condition holds.  the probability is then the product of the random choices.  In current sampling schemes this can be inefficient because the random choices are generally made independently (rejection sampling) or semi-randomly (gradient-style manipulation of a single random choice at a time, mcmc).  The potential of propagation is to use dependency information about the operations in the computation to make "smarter" random choices in order to force the condition to hold.
 
@@ -730,14 +784,27 @@ We can propagate information forward about A,B, and C needing to take on value 1
 here once we make a random choice for A, B, or C we can force the choices for the other two values so that the condition holds using our knowledge of +
 
 eventually we'd like to be able to learn constraints for higher level operations (possibly soft constraints or adding uncertainty to the semantics that propagates as well)
+** planning example
+from vikash's dissertation pg 63 
+(define (choose-action state)
+  (lex-query ’((action (action-prior)))
+	      ’action
+	       ’(flip (normalize-reward
+		       (sample-reward action state)))))
+(define (sample-reward action state)
+  (let ((next-state (state-transition state action)))
+    (+ (reward next-state)
+       (if (terminal? next-state) 0
+	 (sample-reward (choose-action next-state)
+			next-state)))))
+
 ** probablistic programming tantalizes
 section 5.2 of Alexey Radul's PhD thesis
 *** how does dependency-directed backtracking improve probabilistic inference?
-**** TODO how does dependency-directed backtracking work?
+**** how does dependency-directed backtracking work?
 read in revised report on the propagator model
 **** what is an example of evidence pushing in a propagation network?
 **** what is an example of the "two levels of propagation" mentioned on page 85?
-
 ** propagation of uncertainty
 *** nothing cases
 can this be done by specifying how to handle [[*modifying%20functions%20to%20handle%20nothing%20as%20an%20input][nothing]] cases for functions?
@@ -745,4 +812,5 @@ can this be done by specifying how to handle [[*modifying%20functions%20to%20han
 how is propagation of uncertainty formulated in the framework where distributions are partial programs, how does this relate to partial information
 
 perhaps given data, different parts of the data are being explained/explained at the same time and all of this must be combined
+
 
