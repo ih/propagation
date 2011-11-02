@@ -584,39 +584,24 @@ run mit-scheme from the propagators directory
 (load "load")
 start entering propagator 
 ***** TODO from a file
-*** projects
+*** practice
 **** parsing
-write a propagation network for a generative grammar and see if parsing comes for free
+write a propagation network for a generative grammar and see if parsing comes out of multi-directional computation
 ***** balanced parentheses language 
 S-> SS
 S-> 1S0
 S-> 10
-***** forward generation network
-****** TODO write as scheme program
+****** forward generation network
+******* TODO write as scheme program
 S is a function that randomly chooses to return one of the three production rules (randomness functions are in scheme-propagators)
 
 need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
-****** convert scheme program to propagator network
+******* convert scheme program to propagator network
 =======
-*** practice
-**** parser
-try to make a parser using a propagator network
-***** design
-a grammar is a propagative process
-the rules act as propagators connected to a cell that contains the output of derivation
-****** an example
-http://en.wikipedia.org/wiki/Ambiguous_grammar
-A -> A+A | A-A | a
-
-a + a - a
-
-******* derivation as forward propagation
-******** what should the cells be?
-perhaps view the string as a list and each element has its own cell
-maybe a cell for the output string "a + a - a"
-compound cell?
-********* TODO read section on side-effects in alexey's thesis
-
+***** simple ambigous language
+A -> A+A
+A -> A-A
+A -> a
 ** probabilistic inference
 *** church: a language for generative models
 noah goodman, vikash mansinghka, dan roy, keith bonawitz, josh tenenbaum 2008
