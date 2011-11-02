@@ -576,6 +576,7 @@ it signals the premises form a nogood set
 ****** what invariant does the system maintain with respect to nogood sets?
 it keeps a worldview that does not have any nogood sets
 
+<<<<<<< HEAD
 *** programming with propagators
 **** running scheme-propagators
 ***** from the repl
@@ -596,6 +597,25 @@ S is a function that randomly chooses to return one of the three production rule
 
 need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
 ****** convert scheme program to propagator network
+=======
+*** practice
+**** parser
+try to make a parser using a propagator network
+***** design
+a grammar is a propagative process
+the rules act as propagators connected to a cell that contains the output of derivation
+****** an example
+http://en.wikipedia.org/wiki/Ambiguous_grammar
+A -> A+A | A-A | a
+
+a + a - a
+
+******* derivation as forward propagation
+******** what should the cells be?
+perhaps view the string as a list and each element has its own cell
+maybe a cell for the output string "a + a - a"
+compound cell?
+********* TODO read section on side-effects in alexey's thesis
 
 ** probabilistic inference
 *** church: a language for generative models
