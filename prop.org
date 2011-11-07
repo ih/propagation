@@ -583,7 +583,8 @@ it keeps a worldview that does not have any nogood sets
 run mit-scheme from the propagators directory
 (load "load")
 start entering propagator 
-***** TODO from a file
+***** from a file
+(load 'path to load.scm') at the top
 *** practice
 **** parsing
 write a propagation network for a generative grammar and see if parsing comes out of multi-directional computation
@@ -592,12 +593,18 @@ S-> SS
 S-> 1S0
 S-> 10
 ****** forward generation network
-******* TODO write as scheme program
+******* DONE write as scheme program
 S is a function that randomly chooses to return one of the three production rules (randomness functions are in scheme-propagators)
 
 need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
 ******* convert scheme program to propagator network
-=======
+******** TODO analyze the scheme program in terms of the most basic operations
+look at where ambiguity arises in the forward computation that will cause difficulties in the backward computation, compare the proram to one that uses cons in its production rules and has output that can easily be reversed
+********* basic operations
+********** append
+********** list
+********** choice
+
 ***** simple ambigous language
 A -> A+A
 A -> A-A
