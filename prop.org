@@ -598,14 +598,26 @@ S is a function that randomly chooses to return one of the three production rule
 
 need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
 ******* convert scheme program to propagator network
-******** TODO analyze the scheme program in terms of the most basic operations
+******** TODO do the backward computation by hand for a few examples
 look at where ambiguity arises in the forward computation that will cause difficulties in the backward computation, compare the proram to one that uses cons in its production rules and has output that can easily be reversed
-********* basic operations
-********** append
-********** list
-********** choice
+********* (1 0)
+1 matches 1 in rules (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
+0 matches 0 in (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
 
-***** simple ambigous language
+********** starting at 1
+1 propagates backward to (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
+(lambda () (list 1 0)) propagtes forward to form (1 0) which matches
+(lambda () (append '(1) (S) '(0))) propagates backward with (S) and forward with (1 ? 0) where S is the result of the forward propagation
+
+(S) forward goes to (lambda () (append (S) (S))), (lambda () (list 1 0)), (lambda () (append '(1) (S) '(0))) and the last two rules create a conflict with the true output so can be eliminated
+********** starting at 0
+similar to 1
+********** propagation network
+*********** TODO topology
+cells for the constants?  constants reused throughout a network?
+cell for the output?
+
+look at smc-core for how we processed lists in bpm***** simple ambigous language
 A -> A+A
 A -> A-A
 A -> a
