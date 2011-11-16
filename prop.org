@@ -598,7 +598,7 @@ S is a function that randomly chooses to return one of the three production rule
 
 need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
 ******* convert scheme program to propagator network
-******** TODO do the backward computation by hand for a few examples
+******** do the backward computation by hand for a few examples
 look at where ambiguity arises in the forward computation that will cause difficulties in the backward computation, compare the proram to one that uses cons in its production rules and has output that can easily be reversed
 ********* (1 0)
 1 matches 1 in rules (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
@@ -617,7 +617,8 @@ similar to 1
 cells for the constants?  constants reused throughout a network?
 cell for the output?
 
-look at smc-core for how we processed lists in bpm***** simple ambigous language
+look at smc-core for how we processed lists in bpm
+***** simple ambigous language
 A -> A+A
 A -> A-A
 A -> a
@@ -838,3 +839,16 @@ how is propagation of uncertainty formulated in the framework where distribution
 perhaps given data, different parts of the data are being explained/explained at the same time and all of this must be combined
 
 
+
+
+** semantics as constraints
+Write an interpreter that tracks semantics for its operations.  every input and output of an operation is kept track of and the pairs are compressed as more data is collected; the compressed input/output are the semantics of the operation and can be used for execution
+
+the language also builds up from commonly used sequences of operations and the semantics of these operations are also kept track of in a similar manner
+
+execution of the program should be able to take advantage of the semantics instead of reducing everything to primitive operations
+
+the semantics should also enable multi-directional computation, perhaps implemented with propagation networks
+
+*** propagating interpreter
+start with minimal implementation of 4.1.1. in SICP, but implemented as a propagation network.  different cases for each construct in the language will be a propagator and will have cells that keep track of the input and output; this will be the semantics, merging partial information in these cells will be an abstraction-type operation, evaluation will make use of the semantics as an initial expression propagates forward through the interpreter, this will hopefully allow backward propagation from the output of an expression to the expression itself (using the semantics as guidance)
