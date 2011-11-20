@@ -1,0 +1,16 @@
+(load "~/Code/propagator/load.scm")
+
+(define (eval exp env)
+  (cond ((self-evaluating? exp) exp)))
+
+(define (self-evaluating? exp)
+  (or (number? exp) (string? exp)))
+
+(eval 3 '())
+
+(define-cell exp)
+(define-cell env)
+
+(define-e:propagator (eval exp env)
+  )
+
