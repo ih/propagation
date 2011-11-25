@@ -12,5 +12,9 @@
 (define-cell env)
 
 (define-e:propagator (eval exp env)
-  )
+  (ce:id exp))
+
+(define-cell test (e:eval exp env))
+
+
 
