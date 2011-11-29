@@ -1,0 +1,870 @@
+propagation-based inference
+* motivation
+** what is the relationship between learning, abstract knowledge, and problem solving
+Learning can be considered the acquisition of abstract knowledge.  Abstractions provide constraints that allow for efficient inference/planning/reasoning/problem solving.  The propagation model presents a succint way to implement constraint-based computation.
+
+In the larger scheme of things, the motivation for this project is to gain a better understanding of how abstraction/structure is used in problem solving.
+
+Usually constraints come from the semantics of primitive operations i.e. knowing how to reverse their evaluation.  Abstraction provides high level operations and efficient inference/reasoning will be based on understanding how to reverse these operations.
+
+"The main outstanding challenge is finding a means to “reverse” evaluation locally."
+-Vikash Mansinghka
+
+
+** propagation-based probabilistic inference 
+The more immediate goal of the project is to implement probabilistic inference in the propagation model.  The basic intuition is to model the propagation of uncertainty through a computation, but use semantic information about operations in the computation (the structure) to constrain uncertainty and make inference more efficient.  We'll examine how uncertainty is propagated when semantics (inverse behavior) about primitive operations is sometimes known.
+
+* background
+** propagation networks
+*** propagation networks: a flexible and expressive substrate for computation
+alexey radul's phd thesis
+**** abstract
+a general framework for building systems that perform computation via propagation of information
+****** what does it mean for a cell to accumulate information about a value?
+"The novel insight that should finally permit computing with general-purpose propagation is that a cell should not be seen as storing a value, but as accumulating information about a value"
+****** what does he mean by "there are no arbitrary important decisions?
+"I argue that the structure of the prototype follows from the overarching principle of computing by propagation and of storage by accumulating information—there are no important arbitrary decisions."  Perhaps this refers to probabilistic computing and random choices made during computation.
+**** DONE time for a revolution
+what is an example of mergeable, partial information? how does the notion of computational time constrain computation expressiveness of computation? how is the merging mechanism made generic?
+****** DONE expression evaluation has been wonderful
+in the expression paradigm expressions are computations whose value or side effect is determined by evaluation.  expressions are either atomic or a combinations of subexpressions each of which are evaluated then combined in a fixed way.  these combination expressions can be thought of as high-level actions where the particular way of combining subexpressions is the abstracted out part of a computation. 
+******** DONE why is an expression a combination of instructions acting on the results of subinstructions?
+An example to think of is the if expression, where if is a combination of three subexpressions (that eventually can be reduced to instructions), the combination of instructions is the implementation/semantics of if and the subinstructions being acted upon are the subexpressions to the if statement
+****** DONE but we want more
+there are computational problems where a computation can be defined in terms of sub-computations that can be related in many different ways
+******** DONE what is an example of a constraint satisfaction problem
+finding values in a system of linear equations, we have variables with constraints on the possible values (the equations that must hold involving them)
+******** DONE what is an example of automatic reasoning over declared logical relations?
+finding values for variables that satisfy a logical formula? e.g. determining familial relationships like whether x is a grandfather of y, based on definition of grandfather in terms of a father relation and information about the father relation, propagation occurs in assigning truth to different possible statements.  the assignment of truth to particular statements affects what can be furthur deduced so order can matter.
+********** DONE what is a logical relation?
+a set of tuples, e.g. the father relation is a set of pairs (a,b) where a is the father of b
+****** DONE we want more freedom from time
+the sequential nature of evaluation-based computation constrains models of processes to be sequential, even if the true process is not well-ordered or is really several processes running concurrently
+****** DONE propagation promises liberty
+by organizing computation in terms of networks, one can automatically order operations performed based on the needs of the solution rather than the description of the problem.  this thesis presents a general-purpose propagation system for building such systems.
+**** DONE design principles
+****** DONE propagators are asynchronous, autonomous, and stateless
+the general model is to have computing units called propagators connected to memory units called cells.  cells are responsible for maintaining locking mechanisms as well as detecting the end of a computation or quiescence 
+******** how is this useful to ip?
+in ip we can perhaps think of the computation for finding common subtrees a propagator and the parsing or the generation from a grammar of a model onto data a series of propagators, the cells would be incoming data as well as stored abstractions already formed
+****** DONE we simulate the network until quiescence
+computation is considered complete when a steady state has been reached (it seems a steady state occurs when cells become fixed), perhaps a better definition is when everything gets into a fixed cycle
+****** DONE cells accumulate information
+rather than store complete values cells store values in a range of development (from not started to partially computed to the final value of a computation) so that many different propagators may contribute to the computation of a particular value, in the ip setting we may see the program being parsed from a grammar as a partial value as different rules are activated and fit to data
+******** DONE what does it mean for a cell to store information about a value
+it's data that may or may not be useful in constructing the final value of the computation, one can think of it as results of partial computation(?)
+******** DONE why don't cells store values?
+using the design of "cells store values" leaves a lot of ambiguity as to how this should be implemented, e.g. what happens when we want to store a value to a cell that already has a value?  we can make an arbitrary decision here, but it's hard to tell what the long-term consequences will be.
+******** DONE because trying to store values causes trouble
+********** DONE option a
+the problem with dropping values is we implicitly define special conditions for propagation (e.g. when to drop) and this violates our design goal of having the system be "always on"
+************ DONE what are mutually inverse propagators?
+basically inverse operations, e.g. in figure 2-2 we have diagram of a propagator system where given and two values in the circles the system computes the third value, the constraints of the operations are specified by saying what their inverses are and all these "mutually inverse" operators are propagators
+********** DONE option b
+the problem with always overwriting is loops will run forever, also changes in value introduce a notion of time (what the value was before and after the change)
+********** DONE option c
+throwing an error is not a good solution because it just moves the problem somewhere else like to the schedulers.  cells store state so this is where state should be dealt with.
+********** DONE out of options
+if we are to store values in cells and avoid the above problems we need to make storage decisions based on the content of the value, but this leads a brittleness in the system as demonstrated by the equality example
+******** DONE and accumulating information is better
+basically the answer is for cells to store everything that ever goes into them.  they should be thought of as places where information about a value is collected rather than the value itself
+******** 
+**** DONE core implementation
+****** DONE numbers are easy to propagate
+	      CLOSED: [2011-02-25 Fri 21:24]
+conversion of F to C (temperature) is given as a wiring diagram illustrating how cells and propagators look in a concrete example.  this can be thought of as the execution of code rather than source.  
+******** DONE an interlude on simulation
+a scheduler is needed to tell when each propagator that is ready to run should be executed.  the simplest way is to have a queue, but things should be designed that order in the queue does not matter.  there is also a requirement that propagators perform all they need to do in a single execution, this may be limiting in the case we propagators that are doing large searches and are continuously outputting better and better results (does this violate the restriction?)
+******** DONE making this work
+cells need to accumulate information and also notify neighbors when changes have been made.  this is implemented through three functions add-content, new-neighbor!, and content.
+********** DONE cells have three functions to interface with them
+get the content, add content, register a propagator as a neighbor so whenever contents change the propagator is notified (scheduled to be run)
+********** DONE cells were implemented as closures in the message-accepter style
+this style has the object's (the cell) data (content) and functions (add content, content, add-neighbor) defined within a make-cell function.  
+
+make-cell returns a messaging function which takes in a message saying what function should be called (much like object.method) these functions can manipulate the persistent data defined in the closure e.g. neighbors 
+
+********** how is throwing an error in the definition of add-content different than "option C" of throwing an error in the design principles section discussing why cells should not store values? 
+******** propagators
+********* creating a general propagator
+The general propagator constructor takes a list of neighbors and connects the propagator to the neighbors via [[*cells%20have%20three%20functions%20to%20interface%20with%20them][new-neighbor!]], it also makes sure to alert the propagator after all the connections have been made (even though the connection to each neighbor will alert the propagator i.e. add it to the job queue of the scheduler
+********** DONE in the definition of propagator why does new-neighbor! take two arguments when the definition of new-neighbor! only takes one
+actually the definition of new-neighbor! does take two arguments, the second is the propagator so to-do is the propagating function
+
+********* creating a propagator with a specific function
+calls the constructor for a general propagator where the neighbors are cells containing input to the function, an output cell is also passed to the function->propagator-constructor whose content is updated whenever the the propagator is alerted (this adding content to the output cell is the function passed to the general propagator constructor as the "propagator")
+********* modifying functions to handle nothing as an input
+instead of passing regular scheme functions to "function->propagator-constructor"s we'll want to make sure they can handle nothing values (in case their input cells have nothin).  this is done by wrapping the function with a case for handling nothing inputs
+
+it's also worth noting if one wants to do probabilistic inference then rather then returning nothing when one of the inputs is nothing we can return a distribution over possible values
+********* basic constructors
+basic constructors e.g. + can be made by wrapping them in the do-nothin wrappers and passing them to function->propagator-constructor
+		 
+****** DONE propagation can go in any direction
+	      CLOSED: [2011-02-26 Sat 22:27]
+multi-directional networks can be built by encapsulating an operation's different directions of computation into a single function that creates propagators and their inverses e.g.
+(define (product x y total)
+  (multiplier x y total)
+  (divider total y x)
+  (divider total x y))
+The key observation here is that the cells x, y, and total are shared between the different propagators and this is what makes the propagation paradigm so different from evaluation.
+
+extending a network can be as easy as connecting a propagator to an existing cell like in the temperature conversion example of including kelvin conversion
+****** DONE we can propagate intervals too
+	      CLOSED: [2011-03-03 Thu 08:04]
+propagation of information is demonstrated via an example for estimating the height of a building with a barometer (a niels bohr anectdote)
+
+aside from the main illustration of performing computation on intervals and refining estimates through multiple sources of information, this example demonstrates a very interesting problem solving/reasoning capability of the networks where once one has a set of relations between different quantities one can easily make conditional inference using these propagation networks and this is very similar to human problem solving/lateral thinking (i.e. finding non-obvious relationships and exploiting them)
+******* DONE making this work
+	       CLOSED: [2011-03-03 Thu 08:04]
+Operations (propagators) on intervals need to be added and cells need to be able to merge information i.e. changed so if they already contain something they can accept another input.
+****** DONE generic operations let us propagate anything
+       CLOSED: [2011-03-05 Sat 13:30]
+******* DONE first cells
+	CLOSED: [2011-03-05 Sat 13:30]
+******** the context of merge 
+the common part of dealing with integers and dealing with intervals was that each had its own way of combining new information with the current content of the cell, radul proposes abstracting this out via a merge function which will dispatch different policies for integrating information dependent on the type of information encountered.
+******** generic operators
+generic operators are implementations of an operator that makes it easy to dynamically specify operator behavior for different types of data.  more accurately it allows one to add functionality (separate from the operators definition via defhandler) where the functionality is executed dependent on predicates on the arguments, e.g. predicates may check the type of the arguments.  merge is implemented as a generic operator and the default case (predicates of any? and nothing? on the arguments) handles numbers or "complete information" and another set of cases handles intervals and interactions between interval and number
+******* DONE then propagators
+	       CLOSED: [2011-03-05 Sat 13:30]
+adder, multiplier, etc propagators are redefined as generic operators with defhandlers added to each operation for interval computation.  a nice thing about the design of the system is multi-directional propagators such as sum, product etc do not have to be changed at all.
+
+future propagation systems will be based on defining how merge should behave, but they will all fit under this unified framework of cells and propagators.
+**** dependencies
+*** revised report on the propagator model
+by Alexey Radul and Gerald Jay Sussman
+**** getting started
+***** installation
+the propagator network code can be downloaded from Gerald's home page
+
+start scheme from the propagator home directory and type (load "load")
+I had to restart scheme and do (load "load") again for it to work properly
+
+***** basic example
+you can create cells using (define-cell [name]) e.g. (define-cell a)
+
+you can put something in a cell with (add-content [cell-name] [content])
+
+there are operations for creating propagators and returning a cell that corresponds to the output e.g. (e:+ cell1 cell2)
+
+to check what is in a cell use (content [cell-name])
+
+you have to use (run) to have the network actually perform a computation
+**** making propagator networks
+propagators can be thought of as procedures and cells can be thought of as memory locations.  the difference between the traditional model of memory and propagation cells is that propagations cells  accumulate partial information instead of holding a value 
+[???give a simple example]
+***** attaching basic propagators: d@
+the d@ operation (short for diagram apply) attaches a propagator to other cells with the convention being the last cell is the output cell for the propagator and the first argument is a cell that has propagator constructor information
+***** propagator expressions: e@
+****** what does the e@ operator do?
+it connects a propagator to input cells then creates and returns the output cell
+****** what is the motivation of the e@ operator?
+a common case in building computations/networks is to have an intermediate value generated by one procedure/propagator feed directly into another procedure/propagator, the e@ operator allows for the construction of a network by chaining propagators in a lisp-like expression so you don't have to explicitly create intermediate output cells
+****** why are d@ expressions still needed if e@ exists?
+the d@ expression is useful for connecting cells that have already been constructed e.g. in building multidirectional networks
+******* why do we need d@ used instead of just e@ for building multidirectional networks?
+we specify the cells once (possibly using the e@ operator) for a forward computation, then we need to specify how the computation goes backward by connecting cells using the d@ operator
+****** what is a shortcut for doing d@ operations when the propagator is known at construction time?
+we can use the propagator constructor p:[propagator name] as the connecting operator i.e. (p:[propagator name] cell1 cell2 ...) is the same as (d@ p:[propagator name] cell1 cell2 ...)
+******* why can't we always use the (p:prop-name ...) shortcut?
+because we might only have the propagator name/type at run time (double check this)
+***** late binding of application
+****** how can a propagator not be known at network construction time?
+a cell might be defined for a propagator and connected in a network without the cell actually having been assigned an operation/propagator
+******* how does one assign a propagator to a cell?
+(p:id p:[operator] cell)
+
+***** provided primitives: p:foo and e:foo
+****** what is the naming convention for p:foo and e:foo?
+p: and e: do something with the contents of the passed in cells and write the output to a cell.  this output cell is the last argument of p:foo and created and returned by e:foo
+****** what do p and e stand for in p:foo, e:foo?
+propagator and expression, p:foo and e:foo are cells with information about propagator constructors
+****** what does the id propagator do?
+it continuously copies the contents of input to output
+******* what is the signature of the id propagator?
+(p:id input output), (e:id input)
+****** what does the == propagator do?
+it feeds the input cells to the output cell
+******* what is the signature of the == propagator?
+(p:== input ... output), (e:== input ...) 
+****** what does the switch propagator do?
+It allows for conditional copying of input to output cell based on a control cell having the value true
+******* what is the signature of the switch propagator?
+(p:switch control input output), (e:switch control input)
+******* why does partial information make the switch propagator interesting?
+the thing that is written to the output may be depedent on some conditions on the control cell
+******** what is an example of this?
+???
+****** what does the conditional propagator do?
+it is like an if expression where the first cell goes to the output cell if the control cell is true otherwise the second cell goes to the output cell
+******* what is the signature of the conditional propagator?
+(p:condtional control cell1 cell2 output)
+(e:conditional control cell1 cell2)
+****** what does the conditional-router propagator do?
+this is like an if but instead the input goes to an output cell1 if the control is true and goes to output cell2 if the control is false
+******* what is the signature of the conditional-router propagator?
+(:conditional-router control input output1 output2)
+(:conditional-router control input output1)
+***** cells are data too
+****** what is the implication of cells A and B being inside cell C?
+they have partial information about the cell C
+****** what is desirable if cells occur in another cell?
+the inner cells should be kept in sync with c:id
+******* what is meant by by partial information?
+???
+****** how can cells be added to a cell such that they are kept in sync?
+using the deposit or examine propagator
+******* what is the syntax of the deposit propagator?
+(p:deposit cell place-cell) (e:deposit cell) where place-cell is the outer cell and cell is the inner cell
+******* what is the syntax of the examine propagator?
+it's deposit with the arguments reversed
+(p:deposit place-cell cell), (e:examine place-cell)
+******* what is the difference between examine and deposit?
+the difference is deposit returns the outer cell and examine returns the inner cell
+
+******** how does (e:examine place-cell) work?
+if place-cell has a cell then it is returned, otherwise a new cell is synthesized then put into place-cell then returned
+***** compound data
+****** how is compound data made in the propagator model?
+using the compound data structures of scheme to put together cells
+******* what does the cons propagator do?
+it creates a pair out of two cells and sticks them in an output cell using a syncing propagator like deposit
+******** what is the syntax of the cons propagator?
+(p:cons car-cell cdr-cell output), (e:cons car-cell cdr-cell)
+******* what does the pair? propagator do?
+attaches a propagator that tests whether the input contains a pair and writes a boolean to the output
+******** what is the syntax of the pair? propagator?
+(p:pair? input outout) (e:pair? input)
+******* what does the null? propagator do?
+attaches a propagator to the input that checks if it contains the empty list
+******** what is the syntax for the null? propagator?
+(p:null? input outout) (e:pair? input)
+******* what does the car propagator do?
+it syncs the car of a pair within the input to the passed in output cell.
+******** what happens if a pair does not exist in the input cell?
+a pair is created via (p: cons output nothing input)
+******** what happens if a pair already exists in the input cell and e:car is used?
+the car of the pair will be used as the output cell instead of synthesizing a new one
+******** what is the syntax for the car propagator
+(p:car input output), (e:car input)
+******* what does the cdr propagator do?
+it syncs the output to the cdr cell of the pair inside input, acts just like car
+******** what is the syntax for the cdr propagator
+(p:cdr input output), (e:cdr input)
+******* what does it mean that merging by p:id is bidirectional?
+not only does the contents of the input cell get continuously copied to the output cell, but any changes to the output cell get written to the input cell
+******* what is an example of merging two cons structures together?
+???
+***** propagator constraints: c:foo and ce:foo
+****** what are constraints for?
+deriving information about the arguments of a function based on its output
+****** what does c:foo do?
+it attaches the propagator foo (like p:foo), but also attaches inverse propagators of foo
+******* what do inverse propagators of foo do?
+they deduce the inputs from the outputs
+****** how does ce:foo work?
+same as c:, but in expression style (so synthesizes the output cell)
+***** constants and literal values
+****** what is the preferred way to add a constant in a program?
+use the constant propagator
+******* what is the syntax for the constant propagator?
+(p:constant constant-value) constructs the propagator
+((p:constant constant-value) cell) propagates the constant value to a cell
+(run)
+******* how does the expression style constant propagator used?
+(define-cell cell-name (e:constant constant-value))
+(run)
+***** constant conversion
+****** what happens to constants in propagator programs?
+the system will convert them to constant propagators when possible using e:constant
+***** making cells
+****** what are the equivalent of scheme variables in the propagator model?
+cells bound to scheme variables
+****** what is an alternative to (define-cell x)
+(define x (make-cell))
+******* what is the difference betwee (define-cell x) and (define x (make-cell))?
+define-cell does constant conversion and adds meta-data for debugging
+
+****** how do you define variables with let style in the propagator model?
+(let-cells ((foo (e:+ x y))
+           (bar (e:constant 5)))
+...)
+
+(let-cells* ((var val) (var val)...) ...)
+
+(let-cells-rec ((var val) (var val)...) ...)
+
+****** what is the initial state for any cell?
+the partial information structure nothing
+****** what does (let-cells (x y (foo (some thing))) ...) mean?
+x and y are cells not attached to propagators (i.e. only have the nothing information in them.  it's like (let-cells ((x) (y) (foo (some thing))) ...)
+****** what is the difference between let-cell and let-cells?
+let-cell only allows for the creation of a single variable, in general just use let-cells
+***** conditional network construction
+****** what is the idea of conditional network construction?
+delay the construction of the network conditioned upon information appearing at the boundary
+****** what does the when propagator do?
+it evaluates some code for constructing part of the network dependent on a control cell being true
+******* what is the syntax for the when propagator?
+(p:when internal-cells condition body ...)
+where internal-cells are free variables in body and body is code that does some sort of network construction
+condition is an expression that creates a cell with a conditional value
+******** what is an example of the when propagator?
+???
+****** what does the unless propagator do?
+same as the when propagator but reversing the control cell
+****** what does the if propagator do?
+evaluates one branch of network construction code with given input cells if control cell is true otherwise evaluates the other branch
+**** making new compound propagators
+***** what is a compound propagator?
+a composition of several primitive propagators treated as a single propagator, much like a function can be thought of as a sequence of more primitive actions that gets abstracted/used as a single action
+***** how do you create compound/abstract propagators?
+define-d:propagator and define-e:propagator
+****** what is the syntax for define-d:propagator and define-e:propagator?
+(define-d:propagator ([name of new compound propagator] boundary_cell1 boundary_cell2 ...)
+diagram-style propagator network made out of primitives...)
+define-e:propagator is similar, but exprected to return an additional output cell and the network is defined in expression style
+****** what is define-propagator short for?
+define-d:propagator 
+****** what is the syntax for anonymous propagators?
+lambda-d:propagator and lambda-e:propagator
+****** how does one use a propagator created using define-propagator?
+(define-propagator (propagator-name...)...)
+
+can be used as (p:propagator-name ...)
+****** how does one create a constraint propagator using define-propagator?
+(define-propagator (c:propagator-name ...) ...)
+***** lexical scope
+****** how are free variables accessed in a nested propagator definition?
+using the import function e.g.
+(define-propagator (a var1...)
+  (define-propagator (b ...)
+     (import var1) <--- gives access to the outer scope
+))
+***** recursion
+****** Is "evaluation" (network construction) of a propagator lazy or eager?
+eager
+****** how is recursion implemented since evaluation is eager?
+using conditional construction propagators like if, when, and unless (just like in scheme)
+****** how would you write a network to compute the factorial function using diagram style propagators?
+(define-propagator (p:factorial n n!) 
+  (p:if (n n!) (e:= 0 n) 
+    (p:== 1 n!) 
+    (p:== (e:* n (e:factorial (e:- n 1))) n!))) 
+****** how would you write a network to compute the factorial function using expression style propagators?
+(define-e:propagator (e:factorial n) 
+  (e:if (n) (e:= 0 n) 
+    1 
+    (e:* n (e:factorial (e:- n 1))))) 
+**** using partial information
+***** what is special about propagator memory cells?
+they contain partial information about the value in the cell i.e. anything that is known about a value in a computation
+***** how is partial information represented in the propagator system?
+as scheme objects with a particular type that determines how the information interacts with everything else
+***** what are examples of partial information?
+*nothing* which indicates nothing is known about a value, a number which says the value is the number, an interval which says the value is bounded in a certain way
+***** how is partial information put into a cell?
+via add-content, which is used implicitly in define-cell
+***** how do different types of partial information interact in a network?
+they generally are coerced to the less-specific type, but the more specific information may narrow what is known
+****** what is an example of how partial information mixes?
+(define-cell x (make-interval 3 5)) 
+(define-cell y (e:+ x 2)) 
+then running the network gives
+(content y)  ==>  #(interval 5 7) 
+***** what is the key idea of partial information?
+it accumulates so that one approaches the true value as more and more information is added
+****** what is an example of how more information can narrow the possible values for a cell?
+if (content y) => #interval (5 7) and we add more information
+(add-content y (make-interval 4 6)) 
+then 
+(content y)  ==>  #(interval 5 6) 
+***** what happens if two pieces of information about a value contradict each other?
+the system will stop and complain
+***** what functions are used to define partial information types?
+equivalent?, merge, and contradictory?
+****** what does equivalent? do?
+it tests whether two pieces of partial information represent the same thing
+****** what does merge do?
+combines two information structures
+****** what does contradictory? do?
+tests whether an information structure represents an impossible state
+***** what else is needed to define partial information types?
+how propagators treat the type especially the behavior in the control position of a switch and the operator position of an apply
+**** built-in partial information structures
+***** what are the built-in partial information structures?
+nothing
+a single value
+intervals
+propagator cells
+compound data
+closures
+supported values
+truth maintenance systems
+contradiction
+***** nothing
+****** what is the nothing information structure?
+it is a scheme object *nothing* that represents the complete absence of information
+****** what is the way to test if an object is nothing?
+(nothing? object)
+****** how is the behavior of equivalent? defined for *nothing*?
+it returns false for anything other than *nothing* i.e. *nothing* is only equivalent with *nothing*
+****** what happens when something is merged with *nothing*?
+nothing happens to the something, the result of the merge is you get the something back
+****** what is the behavior of contradictory? with *nothing*?
+it returns false, everything is compatible with *nothing*
+****** how does a switch process *nothing* in its control cell?
+it propagates *nothing* to the output cell
+****** how do propagators interact with nothing?
+the output is usually *nothing*
+****** what does the apply propagator do with *nothing* as the operator cell?
+it doesn't do anything
+***** just a value
+****** what is a value information structure?
+any scheme object that is not some other partial information structure, it represents complete information known about the contents of a cell
+****** how is the behavior of equivalent? defined for a value?
+it is defined in terms of eqv? and for floating points approximate equality is tested
+****** what happens when something is merged with a value?
+if the objects are not eqv? then the result of a merge is the contradiction object
+****** what is the behavior of contradictory? with a value?
+it is always false
+****** how does a switch process a value in its control cell?
+if the value is not #f then the switch propagates the input cell to the output cell otherwise it propagates a *nothing* object
+****** what does the apply propagator do with a value?
+if the value is a scheme procedure the procedure is applied to the boundary cells, otherwise an error occurs
+***** numerical intervals
+****** what is a numeric interval information structure?
+it consists of an upper and lower bound and represents the true value being somewhere in between these bounds
+****** how do you create an interval?
+(make-interval lower-bound upper-bound)
+****** how do you get the lower bound of an interval?
+(interval-low interval)
+****** how do you get the upper bound of an interval?
+(interval-high interval)
+****** how do you test whether an object is an interval?
+(interval? object)
+****** how is the behavior of equivalent? defined for a numerical interval?
+two intervals are equivalent? if they are the same interval, a number and an invterval are equivalent if the lower bound=upper bound=number
+****** how does comparison of intervals work?
+they return true or false as long as no additional information about the interval (shrinkage) can change the answer, otherwise it propagates *nothing*
+******* what would cause a comparison of intervals to change given additional information about the intervals?
+(e:< interval1 interval2) could be true if interval1 contains interval2, but it might turn out to be false if interval1 is actually the upperbound
+****** what happens when two intervals are merged?
+two intervals are intersected when merged
+****** what happens when a number and an interval are merged?
+the number is treated as an interval with the same upper and lower bound, so either the number is returned or the empty interval
+****** what happens when something other than a number or interval is merged with an interval?
+the result is the contradiction object
+****** how do arithmetic propagators behave with intervals?
+they perform interval arithmetic
+******* how does interval arithmetic work?
+???
+****** how does a switch process a value in its control cell?
+it propagates the input cell to the output cell
+****** what does the apply propagator do with an interval as the operator?
+it is an error
+****** what happens with dividing an interval that contains zero?
+no information is gained
+***** propagator cells as partial information
+****** what is a cell as an information structure?
+it is a propagator cell and it means the structure of the value is within the cell i.e. the partial information about the value of the outer cell lies within the inner cell
+****** how is the behavior of equivalent? defined for cells?
+cells are equivalent? if they are identically the same cell or if they have been merged/synced and so contain the same information
+****** is a cell object ever contradictory?
+no
+***** compound data
+****** what is a cell pair as an information structure?
+it says the value of a cell has a pair structure and information about the car value is in the car cell and information about the cdr value is in the cdr cell
+****** what is the empty list as an information structure?
+the empty list is a value, it says the value of the cell is an empty list
+
+****** how is the behavior of equivalent? defined for cell pairs?
+two cell pairs are equivalent? if the cells in their cars and cdrs are equivalent?, cell pairs can only be equivalent? to cell pairs
+****** how does merging work with a cell pair?
+two pairs are merged recursively by merging the cars then the cdrs, merging a pair with anything else results in contradiction
+****** how does a switch process a value in its control cell?
+it propagates input to output even for empty list
+****** what does the apply propagator do with a value as operator?
+this is an error
+****** how can other types of compound data structures be made into partial information structures?
+define-propagator-structure, declares that additional Scheme data structures are partial information like pairs, and defines appropriate propagators that handle them.
+******* what is the syntax for define-propagator-structure?
+(define-propagator-structure type constructor accessor1 accessor2 ...)
+***** closures
+****** what is a closure as an information structure?
+it is compound data where that gives structural information about how other partial information relates to each other
+******* what is a closure?
+a scheme procedure (code pointer) along with an environment that maps names to cells
+****** how does merging work for closures?
+the code/scheme procedure must be the same otherwise a contradiction is the result of a merge, if the code is the same the enivornment is merged by merging the cells in the environment** probabilistic inference
+
+***** truth maintenance systems 
+****** what is a truth maintenance system?
+a set of contingent values
+******* what is a contingent value? 
+a partial information object that describes the value in a cell along with a set of premises
+******** what are premises?
+scheme objects with no properties other than identity i.e. we can check that two premises are the same via eq?
+******* what is a worldview?
+a set of premises that are believed to be true
+****** what is the meaning of a TMS?
+it is the logical and of the meaning of its contingent values
+******* what is the meaning of a contingent value
+its an implication where the conjunction of the premises implies the contingent information
+******* how does a worldview relate to a TMS?
+it give meaning to contingent values, which in turn gives meaning to the TMS
+
+****** what does querying a TMS do?
+it returns the best summary of the believed information (true contingent values) along with the premises the believed information is contingent upon
+****** how does the propagator system relate to the TMS?
+there is a single current global worldview which starts believing all premises, the worldview can change its set of premises and the resulting consequences of different worldviews can be examined
+****** TMS operations
+******* how do you remove a premise from the current worldview?
+(kick-out! premise)
+******* how do you bring a premise back into the worldview?
+(bring-in! premise)
+
+******* how do you check whether a premise is in the worldview?
+(premise-in? premise)
+******* how do you make a contingent value?
+(contingent info premises)
+
+******* how do you get the information structure from a  contingent value?
+(contigent-info contingency-object)
+******* how dd you get the premises from a contingent value?
+(contingent-premises contingent-value)
+******* how do you tell whether a contingent value's information is believed?
+(contingent-object-believed? contingent-value)
+******* how do you make a truth maintenence system?
+(make-tms contingent-value-list)
+******* how do you query a tms object?
+(tms-query tms)
+******** what does tms-query return?
+a contingent-value that represents the strongest deduction the TMS can make given the current worldview i.e. the contingent value with the strongest information.
+********* what is the strongest information when it comes to contingent values?
+???
+****** how do you reset the worldview so that all premises are believed?
+(initialize-scheduler)
+****** how is the behavior of equivalent? defined for two tms?
+two tms are equivalent if they have the same contingent values
+******* when are contingent values the same?
+when they have the same information and premises
+****** how is behavior of merge defined for two tms?
+the merge of two tms is the union of their contingent values
+****** how does a switch propagator behave when a tms is in the control cell?
+a query is made of the tms and based on the resulting contingent value's information the switch will propagate the input to the output, if the input does propagate to the output the premises of the control contingent-value will be added to the outputs premises
+****** how does a switch propagator behave when a tms is in the input cell?
+it queries the input tms and if the control propagates the input then the contingent-value from the query is propagated to the output
+****** what does the apply propagator do with a tms as the operator?
+it queries teh tms operator and if the info of the resulting contingent value is a propagator contructor then the propagator is applied to the boundary cells and the premises of the operator are attached to the output and forwarded to the inputs
+******* what does it mean for the premises of a propagator construct to be forward to the input boundary cells?
+???
+
+***** contradiction
+****** what is the-contradiction as partial information structure?
+it represents a contradictory state in the system and if a cell has this value an error is signaled 
+****** how is the behavior of equivalent? defined for the-contradiction?
+only the-contradiction is equivalent
+****** how is merge behavior defined for the-contradiction?
+anything merged with the-contradiction results in the-contradiction
+****** how do propagators operate on the-contradiction?
+they don't because if a cell has the-contradiction as a value the system signals an error
+***** implicit dependency-directed search
+****** what happens if a tms has a contingent value whose information is the-contradiction?
+it signals the premises form a nogood set
+****** what invariant does the system maintain with respect to nogood sets?
+it keeps a worldview that does not have any nogood sets
+
+<<<<<<< HEAD
+*** programming with propagators
+**** running scheme-propagators
+***** from the repl
+run mit-scheme from the propagators directory
+(load "load")
+start entering propagator 
+***** from a file
+(load 'path to load.scm') at the top
+*** practice
+**** parsing
+write a propagation network for a generative grammar and see if parsing comes out of multi-directional computation
+***** balanced parentheses language 
+S-> SS
+S-> 1S0
+S-> 10
+****** forward generation network
+******* DONE write as scheme program
+S is a function that randomly chooses to return one of the three production rules (randomness functions are in scheme-propagators)
+
+need a concatenation function for strings or use cons to put together primitives and use a list representation for the data (cons or strings in scheme-propagators)
+******* convert scheme program to propagator network
+******** do the backward computation by hand for a few examples
+look at where ambiguity arises in the forward computation that will cause difficulties in the backward computation, compare the proram to one that uses cons in its production rules and has output that can easily be reversed
+********* (1 0)
+1 matches 1 in rules (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
+0 matches 0 in (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
+
+********** starting at 1
+1 propagates backward to (lambda () (list 1 0)) and (lambda () (append '(1) (S) '(0)))
+(lambda () (list 1 0)) propagtes forward to form (1 0) which matches
+(lambda () (append '(1) (S) '(0))) propagates backward with (S) and forward with (1 ? 0) where S is the result of the forward propagation
+
+(S) forward goes to (lambda () (append (S) (S))), (lambda () (list 1 0)), (lambda () (append '(1) (S) '(0))) and the last two rules create a conflict with the true output so can be eliminated
+********** starting at 0
+similar to 1
+********** propagation network
+*********** TODO topology
+cells for the constants?  constants reused throughout a network?
+cell for the output?
+
+look at smc-core for how we processed lists in bpm
+***** simple ambigous language
+A -> A+A
+A -> A-A
+A -> a
+** probabilistic inference
+*** church: a language for generative models
+noah goodman, vikash mansinghka, dan roy, keith bonawitz, josh tenenbaum 2008
+an example of the sampling approach to inference
+*** report on the probabilistic scheme
+alexey radul 2007
+an example of the systematic search approach to inference
+**** introduction
+***** what are some example applications of probabilistic modeling?
+spam filtering, automated driving, discovering patterns of gene expression
+****** how are probabilistic models used in spam filtering?
+???
+****** how are probabilistic models used in automated driving?
+???
+****** how are probabilistic models used in discovering patterns of gene expression?
+???
+***** what are the contributions of probabilistic scheme?
+probabilistic scheme provides an embedding of probabilistic computation into a general-purpose programming language and anytime approximation using upper and lower bounds
+****** what is meant by probabilistic computation?
+determining a distribution over values for an expression, more specifically potentially complicated conditional distributions
+****** what is meant by anytime approximation?
+???
+***** how does probabilistic scheme relate to probability distributions?
+expressions in probabilistic scheme are distributions over the possible values the expression can evaluate to
+***** how should one conceptualize distributions in probabilistic scheme?
+as a list (more accurately a stream) of possibilities/possible values for an expression
+***** what are the components of probabilistic scheme?
+a stochastic language, an explicit language for distributions, and a query language
+****** what is the stochastic language component of probabilistic scheme for?
+constructing complex distribution as scheme programs with primitives nondeterministic primitives
+****** what is the explicit language for distributions in probabilistic scheme for?
+???
+****** what is the query language for?
+it's used for getting specific information out of/about a distribution
+******* what is an example of information that would be queried from a distribution?
+???
+**** background
+***** what is the motivation for probabilistic scheme?
+allow modeling for more structure in domains than current probabilistic model representations
+****** what is lacking in the bayesian network formulation of probabilistic models?
+the ability to capture complex structure of a domain 
+******* why do bayesian networks have a hard time capturing complex structure?
+it is a propositional system and so has similar limitations as propositional logic (compared to first order logic)
+******** why is propositional logic more limited than first order logic?
+???
+******* what is an example of relational structure?
+???
+******** why is this difficult to model with a Bayesian network?
+???
+******* what is an example of first-order logical structure?
+???
+******** why is this difficult to model with a Bayesian network?
+???
+****** how does probabilistic scheme improve on the ability to capture structure?
+***** how does probabilistic scheme differ from IBAL?
+it is not an entire new language rather it is embedded within a general purpose programming language
+****** what is IBAL?
+IBAL is an OCAML based probabilistic programming language
+***** how does probabilistic scheme differ from Ramsey and Pfeffer stochastic lambda calculus?
+it is based on a more operational approach to semantics rather than a denotational semantics
+****** what are denotational semantics?
+meaning of one expression is defined in terms of the meaning of an expression in another language
+expressions are converted into terms in a mathematical language, this corresponds to the idea of compilation
+******* what is an example of the denotational semantics of an expression?
+???
+****** what are operational semantics?
+meaning of an expression is defined in terms of its execution on some machine
+
+this corresponds to interpretation 
+******* what is an example of the operational semantics of an expression?
+???
+**** stochastic language
+***** what are the primitives for uncertainty in probabilistic scheme?
+discrete-select, observe!, stochastic-thunk->distribution
+****** what does discrete-select do?
+returns an item with the probability specified
+******* what is the signature of discrete-select?
+(discrete-select (item1 prob1) (item2 prob2)...)
+****** what does observe! do?
+it forces the outcome of a stochastic expression to obey a given boolean expression and thus conditions the implicit distribution of the encapsulating expression
+******* what is the signature of observe!
+(observe! boolean)
+****** what does stochastic-thunk->distribution do?
+it returns an explicit distribution of a stochastic expression
+******* what is the signature of stochastic-thunk->distribution?
+(stochastic-thunk->distribution thunk)
+******* how is an explicit distribution represented?
+???
+***** how is the conditional distribution p(dice-face|face>2) represented in probabilistic scheme?
+the outcome,face, of a die roll is modeled then conditioned on face>2.  face is returned by the expression
+****** how can a die be modeled in probabilistic scheme?
+(define (roll-die) (discrete-select (1 1/6) (2 1/6) ... (6 1/6)))
+****** how can the roll-die be conditioned on face being greater than 2
+(let ((face (roll-die)))
+(observe! (> face 2))
+ face)
+****** what is the implicit distribution for the expression (face (roll-die))?
+uniform over die faces
+****** what is the implicit distribution for the expression (> face 2)?
+uniform over values of the die face greater than 2
+****** how does (observe! (> face 2)) affect the implicit distribution?
+it creates a conditional distribution 
+***** how can the stochastic language be implemented with rejection sampling?
+the stochastic primitives are implemented so that the thunk is a sampler and the frequency of the values it returns is an approximation of the distribution
+****** how is discrete-select implemented in the rejection query paradigm?
+discrete-select would randomly return a value
+****** how is observe! implemented in the rejection query paradigm?
+observe would throw an exception if it evaluated to false
+****** how is stochastic-thunk->distribution implemented in the rejection query paradigm?
+the thunk would be run several times and any successful values would be recorded
+
+the frequencies of each returned value would be an approximation of the distribution
+***** what is the general idea for the actual implementation of the stochastic language?
+every possible outcome of the computation is explored as a possibility, these possibilities are either acceptable (according to the conditions) or not and give information on the overall distribution
+****** how does finding the acceptable possibilities through systematic search give a distribution?
+each possibility has an associated probability and once all the probabilities are known a distribution can be formed by normalizing them over the acceptable possibilities
+
+*** natively probabilistic computation
+vikash mansinghka disseration 2009
+**** planning as sampling
+***** what is softmax-optimal planning?
+choosing actions according to a distribution defined by the values of the actions (where probability of an action is proportional to its value)
+****** what is the most common softmax method?
+the most common softmax method uses a gibbs or boltzmann distribution over actions
+
+\frac{e^{\frac{Q(a)}{\tau}}}{\sum_i e^{\frac{Q(a_i)}{\tau}}}
+
+where tau is a temperature constant
+******* what does the temperature constant do in the gibbs distribution with respect to softmax action selection?
+it makes the distribution more uniform or peaked depending on whether the temperature is high or low.  having a peaked distribution makes the action selection like epsilon-greedy, having it more uniform means choosing actions at random
+******** what is epsilon-greedy action selection?
+choose the best action with probability 1-epsilon otherwise select an action uniformly at random
+
+***** how do you represent softmax action selection as a probabilistic program?
+(define (choose-action state)
+  (lex-query ’((action (action-prior)))
+	      ’action
+	       ’(flip (normalize-reward
+		       (sample-reward action state)))))
+****** how is sample-reward implemented?
+(define (sample-reward action state)
+  (let ((next-state (state-transition state action)))
+    (+ (reward next-state)
+       (if (terminal? next-state) 0
+	 (sample-reward (choose-action next-state)
+			next-state)))))
+****** how does the choose-action function represent soft-max action selection?
+the condition statement is a distribution over actions according to their values
+query returns a sample from the prior over actions if the condition is true, which it is according to the distribution in the conditional, this means an action is chosen with probability according to the conditional statement, which makes it a softmax action selector
+
+* propagation-based probabilistic inference
+The goal should be making random choices such that the condition holds.  the probability is then the product of the random choices.  In current sampling schemes this can be inefficient because the random choices are generally made independently (rejection sampling) or semi-randomly (gradient-style manipulation of a single random choice at a time, mcmc).  The potential of propagation is to use dependency information about the operations in the computation to make "smarter" random choices in order to force the condition to hold.
+
+The above outlines how propagation can improve sampling approaches to inference, there also seems to be a way propagation can improve systematic search approaches.  ???How 
+** arithmetic example
+Let's look at the basic example presented in http://projects.csail.mit.edu/church/wiki/Conditioning
+*** deterministic
+(define (take-sample)
+  (query
+   (define A (if (flip) 1 0))
+   (define B (if (flip) 1 0))
+   (define C (if (flip) 1 0))
+   (define D (+ A B C))
+   A
+   (equal? D 3)))
+
+Here we can use the information about + and the condition being D==3 to force A,B, and C to take the value 1
+**** possible methods of inference
+***** "discard" approach
+Goodman, Milch etc.
+***** "systematic search"
+We can propagate information forward about A,B, and C needing to take on value 1 or 0 and we can propagate information backward that D must be 3.  The semantics of + allows us to infer the values of A,B, and C must be 1.
+
+
+*** uncertain
+(define (take-sample)
+  (query
+   (define A (if (flip) 1 0))
+   (define B (if (flip) 1 0))
+   (define C (if (flip) 1 0))
+   (define D (+ A B C))
+   A
+   (>= D 2)))
+
+here once we make a random choice for A, B, or C we can force the choices for the other two values so that the condition holds using our knowledge of +
+
+eventually we'd like to be able to learn constraints for higher level operations (possibly soft constraints or adding uncertainty to the semantics that propagates as well)
+** planning example
+from vikash's dissertation pg 63 
+(define (choose-action state)
+  (lex-query ’((action (action-prior)))
+	      ’action
+	       ’(flip (normalize-reward
+		       (sample-reward action state)))))
+(define (sample-reward action state)
+  (let ((next-state (state-transition state action)))
+    (+ (reward next-state)
+       (if (terminal? next-state) 0
+	 (sample-reward (choose-action next-state)
+			next-state)))))
+
+** probablistic programming tantalizes
+section 5.2 of Alexey Radul's PhD thesis
+*** how does dependency-directed backtracking improve probabilistic inference?
+**** how does dependency-directed backtracking work?
+read in revised report on the propagator model
+**** what is an example of evidence pushing in a propagation network?
+**** what is an example of the "two levels of propagation" mentioned on page 85?
+** propagation of uncertainty
+*** nothing cases
+can this be done by specifying how to handle [[*modifying%20functions%20to%20handle%20nothing%20as%20an%20input][nothing]] cases for functions?
+*** [[*we%20can%20propagate%20intervals%20too][partial information]] and propagation of uncertainty
+how is propagation of uncertainty formulated in the framework where distributions are partial programs, how does this relate to partial information
+
+perhaps given data, different parts of the data are being explained/explained at the same time and all of this must be combined
+
+
+
+
+** semantics as constraints
+Write an interpreter that tracks semantics for its operations.  every input and output of an operation is kept track of and the pairs are compressed as more data is collected; the compressed input/output are the semantics of the operation and can be used for execution
+
+the language also builds up from commonly used sequences of operations and the semantics of these operations are also kept track of in a similar manner
+
+execution of the program should be able to take advantage of the semantics instead of reducing everything to primitive operations
+
+the semantics should also enable multi-directional computation, perhaps implemented with propagation networks
+
+*** propagating interpreter
+start with minimal implementation of 4.1.1. in SICP, but implemented as a propagation network.  different cases for each construct in the language will be a propagator and will have cells that keep track of the input and output; this will be the semantics, merging partial information in these cells will be an abstraction-type operation, evaluation will make use of the semantics as an initial expression propagates forward through the interpreter, this will hopefully allow backward propagation from the output of an expression to the expression itself (using the semantics as guidance)
+**** eval
+traditional eval takes an expression and environment and returns a value, basically case statement that does type analysis 
+
+new eval should also pass expression into program for determining new types (abstraction module)
+***** network architecture
+****** cell for expression
+cell for holding sexpressions, use the built-in compound data partial information structure
+****** cell for environment
+****** propagator for eval
+see making new compound propagators in revised report
+******* need a conditional propagator
+use switch 
+******** how do you do multidirectionality for a conditional propagator
+if you have the value of the result and the condition then you can propagate information about variables (environement) 
+
+
