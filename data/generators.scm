@@ -9,6 +9,9 @@
       '()
       (append (list x y) (alternate x y (- repetitions 1)))))
 
+(define (half x y repetitions)
+  )
+
 (define (flatten x)
   (if (null? x)
       x

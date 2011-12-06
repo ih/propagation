@@ -1,3 +1,4 @@
+;;TODO set up emacs-mode for scheme-propagators
 (load "~/Code/propagator/load.scm")
 
 (define (eval exp env)
@@ -8,13 +9,29 @@
 
 (eval 3 '())
 
+(propagatify number?) ;;TODO move these to a new primitives file
+(propagatify string?)
+
 (define-cell exp)
 (define-cell env)
 
-(define-e:propagator (eval exp env)
-  (ce:id exp))
+(define-e:propagator (self-evaluating? exp)
+  (e:or (e:number? exp) (e:string? exp)))
+
+(define-e:propagator (lookup-variable-value exp))
+
+(define-e:propagator (eval exp env)  
+  (e:switch (e:self-evaluating? exp) (ce:id exp))
+  (e:switch (e:variable? exp) (e:lookup-variable-value exp)))  
 
 (define-cell test (e:eval exp env))
 
+(add-content exp 'a)
+
+(content test)
+
+(run)
+
+(content test)
 
 

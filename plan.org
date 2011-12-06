@@ -613,7 +613,7 @@ look at where ambiguity arises in the forward computation that will cause diffic
 ********** starting at 0
 similar to 1
 ********** propagation network
-*********** TODO topology
+*********** topology
 cells for the constants?  constants reused throughout a network?
 cell for the output?
 
@@ -840,7 +840,6 @@ perhaps given data, different parts of the data are being explained/explained at
 
 
 
-
 ** semantics as constraints
 Write an interpreter that tracks semantics for its operations.  every input and output of an operation is kept track of and the pairs are compressed as more data is collected; the compressed input/output are the semantics of the operation and can be used for execution
 
@@ -851,7 +850,7 @@ execution of the program should be able to take advantage of the semantics inste
 the semantics should also enable multi-directional computation, perhaps implemented with propagation networks
 
 *** propagating interpreter
-start with minimal implementation of 4.1.1. in SICP, but implemented as a propagation network.  different cases for each construct in the language will be a propagator and will have cells that keep track of the input and output; this will be the semantics, merging partial information in these cells will be an abstraction-type operation, evaluation will make use of the semantics as an initial expression propagates forward through the interpreter, this will hopefully allow backward propagation from the output of an expression to the expression itself (using the semantics as guidance)
+start with minimal implementation of 4.1.1. in SICP (enough to evaulate the balanced paren program), but implemented as a propagation network.  different cases for each construct in the language will be a propagator and will have cells that keep track of the input and output; this will be the semantics, merging partial information in these cells will be an abstraction-type operation, evaluation will make use of the semantics as an initial expression propagates forward through the interpreter, this will hopefully allow backward propagation from the output of an expression to the expression itself (using the semantics as guidance)
 **** eval
 traditional eval takes an expression and environment and returns a value, basically case statement that does type analysis 
 
@@ -862,9 +861,23 @@ cell for holding sexpressions, use the built-in compound data partial informatio
 ****** cell for environment
 ****** propagator for eval
 see making new compound propagators in revised report
-******* need a conditional propagator
-use switch 
+******* need a conditional propagator for type checking
+******** switch
+********* need a propagator equivalent to number? and string?
+look at p:pair? implementation
+
+use propagatify
 ******** how do you do multidirectionality for a conditional propagator
 if you have the value of the result and the condition then you can propagate information about variables (environement) 
+
+e.g. for the e:eval propagator
+***** language 
+****** pair
+******* append
+this operation is not reversible and where information is lost in the domain of binary inductive inference
+******* list
+**** the little propagator
+try going through the little schemer, but use scheme-propagators.  look at reversing operations as you encounter them
+***** toys
 
 

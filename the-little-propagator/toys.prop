@@ -1,0 +1,30 @@
+(load "~/Code/propagator/load.scm")
+
+(define-cell atomic-cell)
+
+(add-content atomic-cell 'atom)
+
+(run)
+
+(content atomic-cell)
+
+(define-cell list-cell)
+
+(add-content list-cell '(atom))
+
+(define list-check (e:pair? list-cell))
+
+(run)
+
+;;propagator pair (e:pair?) is true for scheme pairs as well as propagator pairs
+(content list-check)
+
+(define list-check (e:pair? atomic-cell))
+
+(run)
+
+
+(content list-check) 
+
+;;todo car and reversing it
+
